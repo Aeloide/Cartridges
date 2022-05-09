@@ -465,9 +465,9 @@ recycling_events.*
 LEFT JOIN `recycling_printers` ON `recycling_events`.`printer_id`=`recycling_printers`.`id`
 LEFT JOIN `recycling_events_stasuses` ON `recycling_events`.`status_id`=`recycling_events_stasuses`.`id`
 LEFT JOIN `recycling_events_reasons` ON `recycling_events`.`reason_id`=`recycling_events_reasons`.`id`
-LEFT JOIN (SELECT * FROM `recycling_cartridges`) AS `cartrige_in` ON `cartrige_in`.`id`=`recycling_events`.`cartridge_in_id`
-LEFT JOIN (SELECT * FROM `recycling_cartridges`) AS `cartrige_out` ON `cartrige_out`.`id`=`recycling_events`.`cartridge_out_id`
-LEFT JOIN (SELECT * FROM `recycling_cartridges`) AS `cartrige_new` ON `cartrige_new`.`id`=`recycling_events`.`cartridge_new_id`
+LEFT JOIN `recycling_cartridges` AS `cartrige_in` ON `cartrige_in`.`id`=`recycling_events`.`cartridge_in_id`
+LEFT JOIN `recycling_cartridges` AS `cartrige_out` ON `cartrige_out`.`id`=`recycling_events`.`cartridge_out_id`
+LEFT JOIN `recycling_cartridges` AS `cartrige_new` ON `cartrige_new`.`id`=`recycling_events`.`cartridge_new_id`
 LEFT JOIN (
 	SELECT GROUP_CONCAT(CONCAT(recycling_events_admins.`dt`,': ',`recycling_admins`.`fio`,' / ',`recycling_events_stasuses`.`stasus`, ' / <i>', recycling_events_admins.`remark`,'</i>') SEPARATOR '<br/>') AS event_txt, recycling_events_admins.`event_id` FROM recycling_events_admins
 		LEFT JOIN `recycling_events_stasuses` ON `recycling_events_admins`.`event_typ_id`=`recycling_events_stasuses`.`id`
