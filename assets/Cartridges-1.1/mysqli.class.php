@@ -25,7 +25,8 @@
 			return $db;
 		}
 
-		function result($handle, $num = 0, $file = '', $line = 0){			if(!is_object($handle)){
+		function result($handle, $num = 0, $file = '', $line = 0){
+			if(!is_object($handle)){
 				$handle = $this->query($handle, $file, $line);
 			}
 	        mysqli_data_seek($handle, $num);
@@ -34,14 +35,23 @@
 			}
 		}
 
-		function num_rows($handle, $file = '', $line = 0){			if(!is_object($handle)){				$handle = $this->query($handle, $file, $line);			}
+		function num_rows($handle, $file = '', $line = 0){
+			if(!is_object($handle)){
+				$handle = $this->query($handle, $file, $line);
+			}
 			if($result = mysqli_num_rows($handle)){
 				return $result;
-			}		}
+			}
+		}
 
-		function fetch_assoc($handle, $file = '', $line = 0){			if(!is_object($handle)){
+		function fetch_assoc($handle, $file = '', $line = 0){
+			if(!is_object($handle)){
 				$handle = $this->query($handle, $file, $line);
-			}			if($result = mysqli_fetch_assoc($handle)){				return $result;			}		}
+			}
+			if($result = mysqli_fetch_assoc($handle)){
+				return $result;
+			}
+		}
 
 		function escape($value){
 			return mysqli_real_escape_string($this->dbl, $value);
