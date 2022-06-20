@@ -79,6 +79,10 @@
 	    	}
 		}
 		
+		function null_val($val){
+			return empty($val) ? 'NULL' : "'".$this->escape($val)."'";
+		}
+		
 		function show_error($query, $file = '', $line = 0){
 			$sapi = php_sapi_name();
     		$log['errno'] = mysqli_errno($this->dbl);
