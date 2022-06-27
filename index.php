@@ -1,6 +1,6 @@
 <?php
 	require("global.php");
-
+	
 	$pageMenu = array(
 		'journal' => array('title' => 'Журнал', 'head' => 'Журнал движения картриджей'),
 		'printers' => array('title' => 'Принтеры', 'head' => 'Список принтеров'),
@@ -16,6 +16,10 @@
 		$_SESSION['officeRegcartridgeId'] = isset($_POST['officeRegcartridgeId']) ? $_POST['officeRegcartridgeId'] : $_SESSION['officeRegcartridgeId'];
 
 		$dt = isset($_POST['dt']) ? $_POST['dt'] : time();
+		
+		$dateVariables = array('checkDate', 'checkDateAdded', 'breakDate');
+		foreach($dateVariables as $dateVariable) $$dateVariable = isset($_POST[$dateVariable]) ? $_POST[$dateVariable] : '';		
+
 
 		$intVariables = array(
 		'pages',
@@ -36,7 +40,12 @@
 		'modelId',
 		'statusId',
 		'companyId',
-		'printerId'
+		'companyRefId',
+		'printerId',
+		'checkId',
+		'breakId',
+		'isPay',
+		'brandId'
 		);
 		foreach($intVariables as $intVariable) $$intVariable = isset($_POST[$intVariable]) ? (int)$_POST[$intVariable] : 0;
 		
@@ -46,6 +55,8 @@
 		'modelName',
 		'cartridgeName',
 		'printerName',
+		'breakName',
+		'checkName',
 		'ip',
 		'sn'
 		);
@@ -60,21 +71,23 @@
 			$DB->query("UPDATE recycling_cartridges SET `status_id`='0' WHERE `id`='$cartridge_out_id'");
 			$DB->query("UPDATE recycling_cartridges SET `status_id`='4' WHERE `id`='$cartridge_in_id'");
 			$DB->query("UPDATE recycling_printers SET `cartridge_inside`='$cartridge_in_id' WHERE `id`='$_SESSION[printerRCId]'");
+			$DB->query("INSERT INTO `recycling_breaks_content`(`eventId`) VALUES ('$event_id')");			
 		} elseif (isset($_POST['cmdAddCartridge'])){
 			// Добавление картриджа
 			if($cartridgeInvNum == 0) $cartridgeInvNum = $DB->result("SELECT IFNULL(MAX(inv_num) + 1, 1) FROM recycling_cartridges WHERE `office_id`='$_SESSION[officeRegcartridgeId]'");
-			if($cartridgeModelId == 0){	print "Нужно выбрать модель картриджа";	exit; }
+			if($cartridgeModelId == 0){ print "Нужно выбрать модель картриджа";	exit; }
+			if($brandId == 0){ print "Нужно производителя конкретно этого экземпляра картриджа"; exit; }			
 			$cartridgeNewId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_cartridges`");
-			$DB->query("INSERT INTO recycling_cartridges (`cartridge_model_id`, `office_id`, `inv_num`, `status_id`) VALUES ('$cartridgeModelId', '$_SESSION[officeRegcartridgeId]', '$cartridgeInvNum', '2')");
+			$DB->query("INSERT INTO recycling_cartridges (`cartridge_model_id`, `brandId`, `office_id`, `inv_num`, `status_id`) VALUES ('$cartridgeModelId', '$brandId', '$_SESSION[officeRegcartridgeId]', '$cartridgeInvNum', '2')");
 			$DB->query("INSERT INTO recycling_events ( `office_id`, `dt`, `cartridge_new_id`, `reason_id`, `status_id` ) VALUES ('$_SESSION[officeRegcartridgeId]', '$dt', '$cartridgeNewId', '$reason_new_id', '5')");
 			$event_id = $DB->result("SELECT id FROM recycling_events WHERE `office_id`='$_SESSION[officeRegcartridgeId]' AND `dt`='$dt' AND `cartridge_new_id`='$cartridgeNewId' ORDER BY id DESC LIMIT 1");
 			$DB->query("INSERT INTO recycling_events_admins (`event_id`, `dt`, `admin_id`, `event_typ_id`, `remark` ) VALUES ('$event_id', '$dt', '$_SESSION[adminId]', '5', '".$DB->escape($remark)."')");
 			header("Location: ?w=journal#event_".$event_id);
 			exit;
-		} elseif (isset($_POST['cmdPay'])) {
-			$event_id = key($_POST['cmdPay']);
-			$DB->query("UPDATE recycling_events SET `is_paid`='1' WHERE `id`='$event_id'");
-			$DB->query("INSERT INTO recycling_events_admins ( `event_id`, `dt`, `admin_id`, `event_typ_id`, `remark` ) VALUES ( '$event_id', '$dt', '$_SESSION[adminId]', '4', '".$DB->escape($remark)."' )");
+//		} elseif (isset($_POST['cmdPay'])) {
+//			$event_id = key($_POST['cmdPay']);
+//			$DB->query("UPDATE recycling_events SET `is_paid`='1' WHERE `id`='$event_id'");
+//			$DB->query("INSERT INTO recycling_events_admins ( `event_id`, `dt`, `admin_id`, `event_typ_id`, `remark` ) VALUES ( '$event_id', '$dt', '$_SESSION[adminId]', '4', '".$DB->escape($remark)."' )");
 		} elseif (isset($_POST['cmdEvent'])){
 			$status_id = key($_POST['cmdEvent']);
 			$event_id = key($_POST['cmdEvent'][$status_id]);
@@ -156,12 +169,10 @@
 					$DB->query("INSERT INTO `recycling_printers_cartridges`(`printerModelId`,`cartridgeModelId`) VALUES ('$printerModelId','".(int)$cartridgeModelId."')");
 				}			
 			}
-		} elseif($_POST['cmdSavePrinterParams']){
+		} elseif(isset($_POST['cmdSavePrinterParams'])){
 			
 			
-			
-			//print_r($_POST);	
-			
+	
 			if($modelId == 0 || $officeId == 0 || $companyId == 0 || $statusId == 0){
 				print "Поля Модель, Офис, Статус или Владелец не могут быть пустыми. Выберите значения в них.";
 				exit;
@@ -172,8 +183,14 @@
 				exit;				
 			}
 			
-			if($DB->num_rows("SELECT * FROM `recycling_printers` WHERE `printerName`='".$DB->escape($printerName)."' AND `officeId`='$officeId'")){
-				
+			if($DB->num_rows("SELECT * FROM `recycling_printers` WHERE `printerName`='".$DB->escape($printerName)."' AND `officeId`='$officeId'") > 0 && $printerId == 0){
+				print "Такое имя принтера уже есть.";
+				exit;					
+			}
+			
+			if($printerId == 0){
+				$printerId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_printers`");
+				$DB->query("INSERT INTO `recycling_printers` (`id`) VALUES('$printerId')");
 			}
 
 			$query = "UPDATE `recycling_printers` SET
@@ -187,12 +204,71 @@
   `statusId`='$statusId' WHERE `id`='$printerId'";
   
 			$DB->query($query);
-			//print $query;			
 
-			//exit;
+			header("Location: ?w=printers#printer_".$printerId);
+			exit;				
 			
+		} elseif (isset($_POST['cmdAddEventsIntoCheck'])){			
+			if($checkId > 0 && $breakId > 0){				
+				$events = array();				
+				if(isset($_POST['events'])) $events = (array)$_POST['events'];
+				if(count($events) == 0){
+					$DB->query("UPDATE `recycling_breaks_content` SET `checkId`=NULL WHERE `breakId`='$breakId'");
+				}else{
+					$DB->query("UPDATE `recycling_breaks_content` SET `checkId`='$checkId' WHERE `eventId` IN (".implode(",", $events).")");
+				}
+			}		
+		} elseif (isset($_POST['cmdEditCheck'])){
+			$checkSumm = floatval($_POST['checkSumm']);
+			if($checkDate == ''){ print "Укажите дату выставления счёта"; exit; }
+			if(mb_strlen($checkName) < 5){ print "Слишком короткое название счета"; exit; }
+			if($checkSumm == 0){ print "Сумма счета не может быть 0"; exit; }
+			if($companyId == 0){ print "Укажите компанию, для которой выставлен счёт"; exit; }			
+			if($companyRefId == 0){ print "Укажите компанию, которая выставила счёт"; exit; }
+			if($isPay == 0){ print "Укажите, оплачен ли на данный момент этот счёт"; exit; }			
+			if($checkId == 0){
+				$checkId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_checks`");
+				$DB->query("INSERT INTO `recycling_checks`(`id`) VALUES('$checkId')");
+			}			
+			$DB->query("UPDATE `recycling_checks` SET `checkDate`='$checkDate', `checkDateAdded`='$checkDateAdded', `checkName`='".$DB->escape($checkName)."', `checkSumm`='$checkSumm', `companyRefId`='$companyRefId', `isPay`='$isPay', `companyId`='$companyId', `breakId`='$breakId' WHERE `id`='$checkId'");
 			
+			if(isset($_FILES)){				
+				setlocale(LC_ALL, 'ru_RU.utf8'); /* Русская локаль для корректной работы basename() */
+				$mimeType = mime_content_type($_FILES['userfile']['tmp_name']);
+				if(in_array($mimeType, $allowCheckFileTypes)){
+					if (move_uploaded_file($_FILES['userfile']['tmp_name'], __DIR__."/storage/".ca_check_path_create($checkId).'.bin')){
+						$DB->query("UPDATE `recycling_checks` SET `fileName`='".$DB->escape(basename($_FILES['userfile']['name']))."', `fileSize`='".$_FILES['userfile']['size']."', `mimeType`='$mimeType' WHERE `id`='$checkId'");						
+					}					
+				}
+			}			
+			header("Location: ?w=payments#check_".$checkId);
+			exit;			
+		} elseif (isset($_POST['cmdAddEventsIntoBreak'])){
+			if($officeId > 0 && mb_strlen($breakName) > 5){
+				$events = (isset($_POST['events'])) ? (array)$_POST['events'] : array();
+				if(count($events) == 0){
+					print "Нужно выбрать события для внесения в разбивку";
+					exit;					
+				}				
+				$breakId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_breaks`");
+				$DB->query("INSERT INTO `recycling_breaks`(`id`,`breakName`,`officeId`) VALUES ('$breakId','".$DB->escape($breakName)."','$officeId')");
+				$DB->query("UPDATE `recycling_breaks_content` SET `breakId`='$breakId' WHERE `eventId` IN ('".implode("','", $events)."')");
+				$DB->query("UPDATE `recycling_breaks` SET `breakDate`=UNIX_TIMESTAMP('$breakDate') WHERE `id`='$breakId'");
+				header("Location: ?w=breaks&id=".$breakId);
+				exit;				
+			}else{
+				print "Не указан офис либо слишком короткое название разбивки";
+				exit;
+			}
+		} elseif (isset($_POST['cmdAddWorksIntoEvent'])){
+			$eventId = (int)$_POST['eventId'];
+			$worksIds = isset($_POST['workIds']) ? $_POST['workIds'] : array();
+			$DB->query("DELETE FROM `recycling_cartridges_works` WHERE `eventId`='$eventId'");
+			if(count($worksIds) > 0) $DB->query("INSERT INTO `recycling_cartridges_works` (`eventId`, `workId`) VALUES ('$eventId','".implode("'),('$eventId','", $worksIds)."')");
+			$DB->query("UPDATE `recycling_breaks_content` SET worksCount=(SELECT COUNT(*) FROM `recycling_cartridges_works` WHERE `recycling_cartridges_works`.`eventId`=`recycling_breaks_content`.`eventId`) WHERE `recycling_breaks_content`.`eventId`='$eventId'");
+			exit;			
 		}
+		
 		header("Location: ".$_SERVER['HTTP_REFERER']);
 		exit;
 	}elseif($_SERVER['REQUEST_METHOD'] == 'GET'){
@@ -205,7 +281,26 @@
 				$id = (int)$_GET['id'];
 				$pageTitle = 'График напечатанных страниц';
 				$content = portalShowPrinterStatistics($id);
-			}			
+			}
+		}elseif(isset($_GET['getCheck'])){
+			$checkId = (int)$_GET['getCheck'];
+			if($checkId > 0){
+				if(is_file(__DIR__."/storage/".ca_check_path($checkId).'.bin')){
+					$fileParams = $DB->fetch_assoc("SELECT `fileName`, `fileSize`, `mimeType` FROM `recycling_checks` WHERE `id`='$checkId'");					
+					header('Content-Type: '.$fileParams['mimeType']);
+					header('Content-Disposition: attachment; filename="'.$fileParams['fileName'].'"');
+					header('Expires: 0');
+					header('Cache-Control: must-revalidate');
+					header('Pragma: public');
+					header('Content-Length: '.$fileParams['fileSize']);					
+					print file_get_contents(__DIR__."/storage/".ca_check_path($checkId).'.bin');
+				}
+			}		
+			exit;
+		}elseif(isset($_GET['cartridgeHistory'])){			
+			$pageTitle = 'История работ с картриджем';			
+			$cartridgeId = (int)$_GET['cartridgeHistory'];			
+			$content = show_cartridges_statistic($cartridgeId);			
 		}elseif(isset($_GET['admDb']) && $_SESSION['superAdm'] == 1){
 			$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 			if($_GET['admDb'] == 'cartridges') $content = showAdmDbCartridgesList($id);
@@ -251,15 +346,14 @@
 	?>
 
 	<fieldset>
-	<legend>Меню:</legend>
 	<div style="padding: 5px; text-align: center;">
 
 		<?php
 		
 		if($_SESSION['superAdm'] > 0) echo '
-			<div class="dropdown" style="float: right;">
-			<div onclick="myFunction()" class="dropbtn">БД</div>
-			  <div id="myDropdown" class="dropdown-content">
+			<div class="dbMenu floatRight">
+			<div onclick="showDbMenu()" class="dropBtn">БД</div>
+			  <div id="dbMenu" class="dbMenu-content">
 				<a href="?admDb=printers">Принтеры</a>
 				<a href="?admDb=cartridges">Картриджи</a>
 			  </div>

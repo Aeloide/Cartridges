@@ -103,8 +103,6 @@
 <tr><td>Файл: '.(($file == '') ? '<i>не указано</i>' : basename($file)).'</td></tr>
 <tr><td>Строка: '.(($line == 0) ? '<i>не указано</i>' : $line).'</td></tr>			
 </table>
-
-
 ';
 				if($this->logenabled == true){
 					if(!file_exists($this->logfile)){
