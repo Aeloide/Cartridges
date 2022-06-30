@@ -45,7 +45,10 @@
 		'checkId',
 		'breakId',
 		'isPay',
-		'brandId'
+		'brandId',
+		'adminId',
+		'superAdm',
+		'adminStatus'
 		);
 		foreach($intVariables as $intVariable) $$intVariable = isset($_POST[$intVariable]) ? (int)$_POST[$intVariable] : 0;
 		
@@ -58,7 +61,8 @@
 		'breakName',
 		'checkName',
 		'ip',
-		'sn'
+		'sn',
+		'adminName'
 		);
 		foreach($textVariables as $textVariable) if(isset($_POST[$textVariable])) $$textVariable = mb_substr($_POST[$textVariable], 0, 50);
 	
@@ -71,7 +75,7 @@
 			$DB->query("UPDATE recycling_cartridges SET `status_id`='0' WHERE `id`='$cartridge_out_id'");
 			$DB->query("UPDATE recycling_cartridges SET `status_id`='4' WHERE `id`='$cartridge_in_id'");
 			$DB->query("UPDATE recycling_printers SET `cartridge_inside`='$cartridge_in_id' WHERE `id`='$_SESSION[printerRCId]'");
-			$DB->query("INSERT INTO `recycling_breaks_content`(`eventId`) VALUES ('$event_id')");			
+			if($cartridge_out_id > 0) $DB->query("INSERT INTO `recycling_breaks_content`(`eventId`) VALUES ('$event_id')");			
 		} elseif (isset($_POST['cmdAddCartridge'])){
 			// Добавление картриджа
 			if($cartridgeInvNum == 0) $cartridgeInvNum = $DB->result("SELECT IFNULL(MAX(inv_num) + 1, 1) FROM recycling_cartridges WHERE `office_id`='$_SESSION[officeRegcartridgeId]'");
@@ -104,56 +108,37 @@
 					$DB->query("UPDATE `recycling_admins` SET `datelogin`=NOW(), `lastip`=INET_ATON('$_SERVER[REMOTE_ADDR]') WHERE `id`='$adminsAuthId'");
 				}
 			}
-		} elseif (isset($_POST['cmdAddAdmin'])){
-			addNewUser();
 		} elseif (isset($_POST['cmdAddOffice'])){
 			addNewOffice($_POST['newOfficeName']);
 		} elseif (isset($_POST['cmdEditCartridgeModel']) && $_SESSION['superAdm'] == 1){
-			if($cartridgeModelId > 0){
-				saveCartridgeParams($cartridgeName, $cartridgeColor, $cartridgeCapacity, $cartridgeModelId);			
-				header("Location: ?admDb=cartridges&id=$cartridgeModelId#model_".$cartridgeModelId);			
-				exit;
+			if(mb_strlen($cartridgeName) <= 2){ print "Слишком короткое название модели"; exit; }		
+			if(!array_key_exists($cartridgeColor, $portalCartridgeColors) || $cartridgeColor == 0){ print "Неверный цвет"; exit; }
+			if($cartridgeModelId == 0){ 
+				$cartridgeModelId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_cartridges_models`");				
+				$DB->query("INSERT INTO `recycling_cartridges_models`(`id`) VALUES ('$cartridgeModelId')");
 			}
+			$DB->query("UPDATE `recycling_cartridges_models` SET `cartridgeName`='".$DB->escape($cartridgeName)."', `cartridgeColor`='$cartridgeColor', `cartridgeCapacity`='$cartridgeCapacity' WHERE `id`='$cartridgeModelId'");
+			header("Location: ?admDb=cartridges#model_".$cartridgeModelId);			
+			exit;			
 		} elseif (isset($_POST['cmdDeleteCartridgeModel']) && $_SESSION['superAdm'] == 1){
-			if($DB->num_rows("SELECT * FROM `recycling_cartridges` WHERE cartridge_model_id='$cartridgeModelId'") == 0){
+			if($DB->num_rows("SELECT * FROM `recycling_cartridges` WHERE `cartridge_model_id`='$cartridgeModelId'") == 0){
 				$DB->query("DELETE FROM `recycling_cartridges_models` WHERE `id`='$cartridgeModelId'");
 				header("Location: ?admDb=cartridges");			
 			}else{
 				print "Нельзя удалить модель, у которой есть записи в таблице картриджей. Вначале удалите картриджи.";
 			}
 			exit;
-		} elseif (isset($_POST['cmdAddNewCartridgeModel']) && $_SESSION['superAdm'] == 1){			
-			if($DB->num_rows("SELECT * FROM `recycling_cartridges_models` WHERE `cartridgeName`='".$DB->escape($cartridgeName)."'") > 0){ print "Такая модель уже есть"; exit; }
-			$cartridgeModelId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_cartridges_models`");
-			saveCartridgeParams($cartridgeName, $cartridgeColor, $cartridgeCapacity, $cartridgeModelId);			
-			header("Location: ?admDb=cartridges&id=$cartridgeModelId#model_".$cartridgeModelId);			
-			exit;			
 		} elseif (isset($_POST['cmdEditPrinterModel']) && $_SESSION['superAdm'] == 1){
-
-			if($printerModelId > 0){
-				
-				
-				
-				$DB->query("UPDATE `recycling_printers_models` SET `modelName`='".$DB->escape($modelName)."', `modelCode`='".$DB->escape($modelCode)."', `deviceType`='$deviceType', `hasNetwork`='$hasNetwork', `hasColor`='$hasColor' WHERE `id`='$printerModelId'");				
-
-
-				header("Location: ?admDb=printers&id=$printerModelId#editForm");
-				exit;				
-			}
-			
-			
-		} elseif (isset($_POST['cmdAddNewPrinterModel']) && $_SESSION['superAdm'] == 1){
-			
-
-			
+			if(mb_strlen($modelName < 2)){ print "Слишком короткое название модели"; exit; }
+			if( $deviceType == 0 || $hasNetwork == 0 || $hasColor == 0){ print "Должны быть указаны значения тип модели, цветность"; exit; }			
 			if($DB->num_rows("SELECT * FROM `recycling_printers_models` WHERE `modelName`='".$DB->escape($modelName)."'") > 0){ print "Такая модель уже есть"; exit; }
-			$printerModelId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_printers_models`");
-			
-			$DB->query("INSERT IGNORE INTO `recycling_printers_models`(`id`) VALUES('$printerModelId')");
-
+			if($printerModelId == 0){
+				$printerModelId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_printers_models`");
+				$DB->query("INSERT INTO `recycling_printers_models`(`id`) VALUES('$printerModelId')");				
+			}
 			$DB->query("UPDATE `recycling_printers_models` SET `modelName`='".$DB->escape($modelName)."', `modelCode`='".$DB->escape($modelCode)."', `deviceType`='$deviceType', `hasNetwork`='$hasNetwork', `hasColor`='$hasColor' WHERE `id`='$printerModelId'");				
-			header("Location: ?admDb=printers&id=$printerModelId#model_".$printerModelId);	
-			exit;	
+			header("Location: ?admDb=printers&id=$printerModelId#model_".$printerModelId);				
+			exit;
 		} elseif (isset($_POST['cmdDeletePrinterModel']) && $_SESSION['superAdm'] == 1){
 			if($DB->num_rows("SELECT * FROM `recycling_printers` WHERE `modelId`='$printerModelId'") == 0){
 				$DB->query("DELETE FROM `recycling_printers_models` WHERE `id`='$printerModelId'");
@@ -260,6 +245,32 @@
 				print "Не указан офис либо слишком короткое название разбивки";
 				exit;
 			}
+		} elseif (isset($_POST['cmdDeleteAdmin']) && $_SESSION['superAdm'] == 1){
+			if($adminId == $_SESSION['adminId']){ print "Самого себя? Низя."; exit; }
+			$eventsCount = $DB->result("SELECT COUNT(*) FROM `recycling_events_admins` WHERE `admin_id`='$adminId'");
+			if($eventsCount > 0){ print "Нельзя удалить пользователя, у которого $eventsCount действий"; exit; }
+			$DB->query("DELETE FROM `recycling_admins` WHERE `id`='$adminId'");
+			header("Location: ?w=options");
+			exit;			
+		} elseif (isset($_POST['cmdEditAdmin'])){
+			$salt = md5(time());
+			if($_SESSION['superAdm'] == 1){
+				if(mb_strlen($adminName) < 5){ print "Слишком короткое имя (менее 5 символов)"; exit; }				
+				if($adminId == 0){
+					if($DB->num_rows("SELECT * FROM `recycling_admins` WHERE `adminName`='".$DB->escape($adminName)."'") > 0){ print "Админ с таким ФИО уже есть"; exit; }				
+					$adminId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_admins`");
+					if(mb_strlen($_POST['adminAuthPass']) < 5){ print "Слишком короткий пароль (менее 5 символов)"; exit; }
+					if($_POST['adminAuthPass'] != $_POST['adminAuthPass2th']){ print "Введенные пароли не совпадают"; exit; }
+					$DB->query("INSERT INTO `recycling_admins`(`id`,`pass`,`salt`,`datereg`) VALUES('$adminId','".passHash($_POST['adminAuthPass'], $salt)."','$salt', NOW())");					
+				}
+				$DB->query("UPDATE `recycling_admins` SET `adminName`='".$DB->escape($adminName)."', `superAdm`='$superAdm', `adminStatus`='$adminStatus' WHERE `id`='$adminId'");
+			}elseif($adminId > 0 && !empty($_POST['adminAuthPass'])){
+				if(mb_strlen($_POST['adminAuthPass']) < 5){ print "Слишком короткий пароль (менее 5 символов)"; exit; }
+				if($_POST['adminAuthPass'] != $_POST['adminAuthPass2th']){ print "Введенные пароли не совпадают"; exit; }
+				$DB->query("UPDATE `recycling_admins` SET `pass`='".passHash($_POST['adminAuthPass'], $salt)."', `salt`='$salt' WHERE `id`='$adminId'");					
+			}					
+			header("Location: ?w=options#adm_".$adminId);
+			exit;				
 		} elseif (isset($_POST['cmdAddWorksIntoEvent'])){
 			$eventId = (int)$_POST['eventId'];
 			$worksIds = isset($_POST['workIds']) ? $_POST['workIds'] : array();

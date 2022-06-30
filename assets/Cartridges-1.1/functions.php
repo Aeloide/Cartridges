@@ -12,7 +12,7 @@ SELECT GROUP_CONCAT(workName SEPARATOR ', ') AS `grpTxt`, `recycling_cartridges_
 `recycling_checks`.`checkName`,
 UNIX_TIMESTAMP(`recycling_checks`.`checkDate`) AS `checkDateU`,
 `recycling_checks`.`isPay`,
-`recycling_counteragents`.`refCompanyName`,
+`recycling_counteragents`.`company`,
 `recycling_cartridges_worknames`.`workName`,
 `recycling_breaks_content`.`checkId`
 FROM `recycling_cartridges_works`
@@ -22,11 +22,10 @@ LEFT JOIN `recycling_cartridges_models` ON `recycling_cartridges_models`.`id`=`r
 LEFT JOIN `recycling_breaks_content` ON `recycling_breaks_content`.`eventId`=`recycling_events`.`id`
 LEFT JOIN `recycling_checks` ON `recycling_checks`.`id`=`recycling_breaks_content`.`checkId`
 LEFT JOIN `recycling_cartridges_worknames` ON `recycling_cartridges_worknames`.`id`=`recycling_cartridges_works`.`workId`
-LEFT JOIN `recycling_counteragents` ON `recycling_counteragents`.`id`=`recycling_checks`.`companyRefId`
+LEFT JOIN (SELECT * FROM `recycling_companies` WHERE `companyType`='2') AS `recycling_counteragents` ON `recycling_counteragents`.`id`=`recycling_checks`.`companyRefId`
 WHERE `recycling_cartridges`.`id`='$cartridgeId'
 GROUP BY `eventId`
 ORDER BY `recycling_checks`.`checkDateAdded` DESC");
-
 
 		$return = '<fieldset><legend>История работ с картриджем:</legend>
 				<table class="mainTable zebra">
@@ -45,25 +44,22 @@ ORDER BY `recycling_checks`.`checkDateAdded` DESC");
 		if($DB->num_rows($cartridgeEvents) > 0){		
 			while($cartridgeEvent = $DB->fetch_assoc($cartridgeEvents)){
 				$return .= "
-							<tr>
-								<td><b>$cartridgeEvent[inv_num]</b> ($cartridgeEvent[cartridgeName])</td>
-								<td>$cartridgeEvent[grpTxt]</td>
-								<td><a href=\"?getCheck=$cartridgeEvent[checkId]\">$cartridgeEvent[checkName] от ".$intlFormatter->format($cartridgeEvent['checkDateU'])."</a></td>
-								<td>$cartridgeEvent[refCompanyName]</td>									
-								<td>".$portalYesNo[$cartridgeEvent['isPay']]."</td>							
-							</tr>";			
+					<tr>
+						<td><b>$cartridgeEvent[inv_num]</b> ($cartridgeEvent[cartridgeName])</td>
+						<td>$cartridgeEvent[grpTxt]</td>
+						<td><a href=\"?getCheck=$cartridgeEvent[checkId]\">$cartridgeEvent[checkName] от ".$intlFormatter->format($cartridgeEvent['checkDateU'])."</a></td>
+						<td>$cartridgeEvent[company]</td>									
+						<td>".$portalYesNo[$cartridgeEvent['isPay']]."</td>							
+					</tr>";			
 			}
 		}else{
-			$return .= '<tr><td colspan="6"><i>Нет данных</i></td></tr>';				
+			$return .= '<tr><td colspan="5"><i>Нет данных</i></td></tr>';				
 		}
 
-		$return .= '</tbody>
-				</table>
-				</fieldset>';
+		$return .= '</tbody></table></fieldset>';
 				
 		
-		$useEvents = $DB->query("
-SELECT
+		$useEvents = $DB->query("SELECT
 `recycling_events`.`id`,
 `recycling_events`.`dt`,
 `recycling_printers`.`printerName`,
@@ -89,8 +85,7 @@ ORDER BY `recycling_events`.`dt` DESC");
 							<th>Офис</th>
 						</tr>
 					</thead>
-					<tbody>
-		';
+					<tbody>';
 
 		if($DB->num_rows($useEvents) > 0){		
 			while($cartridgeEvent = $DB->fetch_assoc($useEvents)){
@@ -107,34 +102,36 @@ ORDER BY `recycling_events`.`dt` DESC");
 			$return .= '<tr><td colspan="4"><i>Нет данных</i></td></tr>';				
 		}
 
-		$return .= '</tbody>
-				</table>
-				</fieldset>';
-		
+		$return .= '</tbody></table></fieldset>';		
 		return $return;
 	}
 
 	function portalShow_GET_options(){
-		global $DB;
+		global $DB, $portalCompanyTypes;
 
-		$return = '<form name="form1" method="post" action="'.$_SERVER['PHP_SELF'].'">
-		<fieldset><legend>Авторизация:</legend>';
+		$return = '<fieldset><legend>Авторизация:</legend>';
 		
 		if(isset($_SESSION['adminId'])){
-			$return .= 'Авторизован как: <b>'.$DB->result("SELECT fio FROM `recycling_admins` WHERE `id`='$_SESSION[adminId]'").'</b> [<a href="?quit">выход</a>]'; 
+			$return .= 'Авторизован как: <b>'.$DB->result("SELECT adminName FROM `recycling_admins` WHERE `id`='$_SESSION[adminId]'").'</b> [<a href="?quit">выход</a>]<br/>
+			<form name="showParams">
+				<input type="checkbox">Не показывать принтеры в статусе "выведен из оборота"<br/>
+				<input type="checkbox">Не показывать картриджи в статусе "выведен из оборота"			
+			</form>
+			'; 
 		}else{
 			$adminsList = $DB->query("SELECT * FROM `recycling_admins` ORDER BY id");
 			if($DB->num_rows($adminsList) == 0){				
 				$salt = md5(time());
-				$DB->query("INSERT INTO `recycling_admins`(`fio`,`pass`,`salt`,`datereg`,`superAdm`) VALUES ('admin','".passHash('admin', $salt)."','$salt',NOW(),'1')");
+				$DB->query("INSERT INTO `recycling_admins`(`adminName`,`pass`,`salt`,`datereg`,`superAdm`) VALUES ('admin','".passHash('admin', $salt)."','$salt',NOW(),'1')");
 				$adminsList = $DB->query("SELECT * FROM `recycling_admins` ORDER BY id");				
 			}
 			
 			$return .= '
+				<form name="form1" method="post" action="'.$_SERVER['PHP_SELF'].'">
 				<table class="mainTable" style="background-color: lightpink; padding: 10px;">
 					<thead>
 						<tr>
-							<th>ФИО</th>
+							<th>Фамилия</th>
 							<th>Пароль</th>
 						</tr>
 					</thead>
@@ -142,7 +139,7 @@ ORDER BY `recycling_events`.`dt` DESC");
 						<tr>
 							<td>
 								<select name="adminsAuthId"><option value="0" selected>-- выберите --</option>';
-								while($admin = $DB->fetch_assoc($adminsList)) $return .= "<option value=\"$admin[id]\">$admin[fio]</option>";			
+								while($admin = $DB->fetch_assoc($adminsList)) $return .= "<option value=\"$admin[id]\">$admin[adminName]</option>";			
 								$return .= '
 								</select>
 							</td>
@@ -153,14 +150,12 @@ ORDER BY `recycling_events`.`dt` DESC");
 						</tr>
 					</tbody>
 				</table>
+				</form>
 			</div>
 			';
-		}		
-
+		}
 	
-			$return .= '
-			</fieldset>
-			</form>';
+		$return .= '</fieldset>';
 			
 		if(isset($_SESSION['adminId'])){
 
@@ -169,7 +164,7 @@ ORDER BY `recycling_events`.`dt` DESC");
 			<table class="mainTable zebra" id="ajaxedRows">
 				<thead>
 					<tr>
-						<th>ФИО</th>
+						<th>Фамилия</th>
 						<th>Действий</th>
 						<th>Регистрация</th>
 						<th>Последний вход</th>
@@ -181,36 +176,38 @@ ORDER BY `recycling_events`.`dt` DESC");
 				<tbody>	
 			';
 			
-			$adminsQuery = $DB->query("SELECT INET_NTOA(`lastip`) AS lastip, `recycling_admins`.`fio`, `recycling_admins`.`id`, `recycling_admins`.`datereg`, `recycling_admins`.`datelogin`,`recycling_admins`.`superAdm`,`recycling_admins`.`status`,eventsList.eventsCount
+			$adminsQuery = $DB->query("SELECT INET_NTOA(`lastip`) AS lastip, `recycling_admins`.`adminName`, `recycling_admins`.`id`, `recycling_admins`.`datereg`, `recycling_admins`.`datelogin`,`recycling_admins`.`superAdm`,`recycling_admins`.`adminStatus`,eventsList.eventsCount
 FROM `recycling_admins`
 LEFT JOIN (SELECT COUNT(*) AS eventsCount, admin_id FROM `recycling_events_admins` GROUP BY admin_id) AS eventsList ON eventsList.admin_id=`recycling_admins`.`id`
-ORDER BY fio");			
+ORDER BY adminName");			
 			while($pos = $DB->fetch_assoc($adminsQuery)){
 				$return .= "
 					<tr data-id=\"$pos[id]\" data-target=\"getAdminEditElement\" id=\"adm_$pos[id]\" class=\"blinking\">
-						<td><a href=\"javascript://\" class=\"add-row\">$pos[fio]</a></td>
+						<td><a href=\"javascript://\" class=\"add-row\">$pos[adminName]</a></td>
 						<td>$pos[eventsCount]</td>
 						<td>$pos[datereg]</td>
 						<td>$pos[datelogin]</td>
 						<td>$pos[lastip]</td>
 						<td>".(($pos['superAdm'] == 1) ? 'Да' : '')."</td>
-						<td>".(($pos['status'] == 1) ? 'Активен' : 'Отключен')."</td>
+						<td>".(($pos['adminStatus'] == 1) ? 'Активен' : 'Отключен')."</td>
 					</tr>";
 			}
 			
 			$return .= '
-					<tr data-id="new" data-target="getAdminEditElement">
-						<td colspan="7" style="text-align:right;">[<a href="javascript://" class="add-row">Добавить админа</a>]</td>
-					</tr>		
+				<tr data-id="new" data-target="getAdminEditElement">
+					<td colspan="7" style="text-align:right;">[<a href="javascript://" class="add-row">Добавить админа</a>]</td>
+				</tr>		
 			</tbody>
 			</table>
 			</fieldset>
 			
-			<fieldset><legend>Офисы:</legend>		
-			<table class="mainTable zebra">
+			<fieldset><legend>Компании:</legend>		
+			<table class="mainTable zebra" id="ajaxedRows">
 				<thead>
 					<tr>
 						<th>Компания</th>
+						<th>Инн</th>
+						<th>Тип</th>						
 						<th>Офис</th>
 						<th>Админы</th>
 					</tr>
@@ -218,39 +215,39 @@ ORDER BY fio");
 				<tbody>		
 			';
 			
-			$companyQuery = $DB->query("SELECT `recycling_companies`.`company`, `recycling_offices`.`office`, names.fio FROM `recycling_companies`
+			$companyQuery = $DB->query("SELECT `recycling_companies`.`id`, `recycling_companies`.`companyType`, `recycling_companies`.`company`, `recycling_companies`.`inn`, `recycling_offices`.`office`, names.adminName FROM `recycling_companies`
 LEFT JOIN `recycling_offices` ON `recycling_companies`.`office_id`=`recycling_offices`.`id`
 LEFT JOIN (
- SELECT GROUP_CONCAT(fio SEPARATOR ', ') AS fio, office_id FROM `recycling_admins_offices`
+ SELECT GROUP_CONCAT(adminName SEPARATOR ', ') AS adminName, office_id FROM `recycling_admins_offices`
  LEFT JOIN `recycling_admins` ON `recycling_admins_offices`.`admin_id`=`recycling_admins`.`id`) AS `names` ON `names`.`office_id`=`recycling_companies`.`office_id`
-ORDER BY `recycling_companies`.`office_id`, company");			
+ORDER BY `recycling_companies`.`companyType`, `recycling_companies`.`office_id`, `company`");			
 			
 			if($DB->num_rows($companyQuery) > 0){			
 				while($pos = $DB->fetch_assoc($companyQuery)){
 					$return .= "
-						<tr>
-							<td>$pos[company]</td>
+						<tr data-id=\"$pos[id]\" data-target=\"getCompanyEditElement\">
+							<td><a href=\"javascript://\" class=\"add-row\"><b>$pos[company]</b></a></td>
+							<td>$pos[inn]</td>							
+							<td>".$portalCompanyTypes[$pos['companyType']]."</td>
 							<td>$pos[office]</td>
-							<td>$pos[fio]</td>						
+							<td>$pos[adminName]</td>						
 						</tr>";
 				}
 			}else{
-				$return .= '<tr><td colspan="3">Нет записей. Добавьте админа в офис через форму выше.</td></tr>';				
+				$return .= '<tr><td colspan="5">Нет данных.</td></tr>';				
 			}
 			
 			$return .= '
+				<tr data-id="new" data-target="getCompanyEditElement">
+					<td colspan="5" style="text-align:right;">[<a href="javascript://" class="add-row">Добавить компанию</a>]</td>
+				</tr>				
 				</tbody>
 			</table>
 			</fieldset>';
 		}
 		
-			if($_SESSION['superAdm']){
+		if($_SESSION['superAdm']){
 			$return .= '
-			<form name="form3" method="post" action="'.$_SERVER['PHP_SELF'].'">			
-				Фамилия админа <input type="text" name="newAdminName">, пароль <input type="password" name="adminAuthPass"> пароль (повтор) <input type="password" name="adminAuthPass2th">			
-				<input type="submit" name="cmdAddAdmin" value="добавить">			
-			</form>
-			<br>
 			<form name="form4" method="post" action="'.$_SERVER['PHP_SELF'].'">			
 				Название офиса <input type="text" name="newOfficeName">			
 				<input type="submit" name="cmdAddOffice" value="добавить">			
@@ -262,7 +259,7 @@ ORDER BY `recycling_companies`.`office_id`, company");
 			</form>
 			<br>
 			';
-			}		
+		}		
 		
 		
 		return $return;		
@@ -279,22 +276,19 @@ UNIX_TIMESTAMP(`recycling_checks`.`checkDate`) AS `checkDateU`,
 UNIX_TIMESTAMP(`recycling_checks`.`checkDateAdded`) AS `checkDateAddedU`,
 `recycling_companies`.`company`,
 `recycling_companies`.`inn`,
-`recycling_counteragents`.`refCompanyName`,
-`recycling_counteragents`.`refInn`,
+`recycling_counteragents`.`company` AS `refCompanyName`,
+`recycling_counteragents`.`inn` AS `refInn`,
 `recycling_breaks`.`breakName`
  FROM `recycling_checks`
 LEFT JOIN `recycling_companies` ON `recycling_companies`.`id`=`recycling_checks`.`companyId`
-LEFT JOIN `recycling_counteragents` ON `recycling_counteragents`.`id`=`recycling_checks`.`companyRefId`
+LEFT JOIN (SELECT * FROM `recycling_companies` WHERE `companyType`='2') AS `recycling_counteragents` ON `recycling_counteragents`.`id`=`recycling_checks`.`companyRefId`
 LEFT JOIN `recycling_breaks` ON `recycling_breaks`.`id`=`recycling_checks`.`breakId`
+WHERE `recycling_checks`.`companyId` IN(SELECT `id` FROM `recycling_companies` WHERE `office_id` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."'))
 ORDER BY `recycling_checks`.`id`");
-
-		$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;			
-		$return = show_check_edit_element($id);
 		
-		$return .= '<fieldset><legend>
-		<div class="floatRight"><div class="editFormAddElement"><a href="?w=payments&new">Добавить новый счёт</a></div></div>
-		Счета:</legend>
-			<table class="mainTable zebra" id="ajaxedRows">
+		$return = '<fieldset>
+				<table class="mainTable zebra" id="ajaxedRows">
+				<caption>Счета</caption>			
 				<thead>
 					<tr>
 						<th>Счёт</th>
@@ -313,7 +307,7 @@ ORDER BY `recycling_checks`.`id`");
 			if($DB->num_rows($checksList) > 0){			
 				while($check = $DB->fetch_assoc($checksList)){
 					$return .= "
-						<tr id=\"check_$check[id]\" class=\"blinking\" data-id=\"$check[id]\" data-target=\"getCheckChangeElement\">
+						<tr data-id=\"$check[id]\" data-target=\"getCheckChangeElement\" id=\"check_$check[id]\" class=\"blinking\">
 							<td><a href=\"javascript://\" class=\"add-row\">$check[checkName] от ".$intlFormatter->format($check['checkDateU'])."</a></td>
 							<td>$check[checkSumm]</td>
 							<td><a href=\"?w=breaks&id=$check[breakId]\">$check[breakName]</a></td>	
@@ -326,10 +320,11 @@ ORDER BY `recycling_checks`.`id`");
 					";
 				}
 			}else{
-				$return .= '<tr><td colspan="6" style="text-align: center;"><i>Пока нет счетов</i></td></tr>';
+				$return .= '<tr><td colspan="8" style="text-align: center;"><i>Пока нет счетов</i></td></tr>';
 			}
 		
 			$return .= '
+					<tr data-id="new" data-target="getCheckChangeElement"><td colspan="8" style="text-align: right;">[<a href="javascript://" class="add-row">Добавить новый счёт</a>]</td></tr>			
 				</tbody>
 			</table>
 			</fieldset>';
@@ -450,52 +445,8 @@ ORDER BY `recycling_events`.`id` ASC");
 
 	function portalShow_GET_breaks(){
 		global $DB, $intlFormatter, $portalYesNo;
-
 		$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 		$intlFormatter->setPattern('d MMMM YYYYг.');
-/*
-SELECT
-`recycling_cartridges`.`inv_num`,
-`recycling_cartridges_models`.`cartridgeName`,
-`recycling_companies`.`company`,
-`recycling_companies`.`inn`,
-`recycling_printers`.`printerName`,
-`recycling_printers`.`companyId`,
-`recycling_events_reasons`.`reason`,
-`recycling_events`.`dt` AS dt,
-`recycling_events`.`id` AS `eventId`,
-`a`.`dt` AS dtOut,
-`a`.`remark` AS remark,
-`recycling_breaks_content`.`breakId`,
-`recycling_breaks_content`.`checkId`,
-`recycling_checks`.`checkName`,
-`recycling_checks`.`isPay`
- FROM `recycling_cartridges`
-LEFT JOIN (
-	SELECT a.* FROM `recycling_events` AS a
-	INNER JOIN (
-		SELECT `cartridge_out_id`, MAX(dt) mxdate
-		FROM `recycling_events`
-		GROUP BY `cartridge_out_id`
-		) AS b ON a.cartridge_out_id=b.cartridge_out_id AND a.`dt`=b.mxdate
-	ORDER BY id DESC
-)
- AS `recycling_events` ON `recycling_events`.`cartridge_out_id`=`recycling_cartridges`.`id`
-LEFT JOIN `recycling_printers` ON `recycling_events`.`printer_id`=`recycling_printers`.`id`
-LEFT JOIN `recycling_companies` ON `recycling_companies`.`id`=`recycling_printers`.`companyId`
-LEFT JOIN `recycling_events_reasons` ON `recycling_events`.`reason_id`=`recycling_events_reasons`.`id`
-LEFT JOIN `recycling_cartridges_models` ON `recycling_cartridges_models`.`id`=`recycling_cartridges`.`cartridge_model_id`
-LEFT JOIN `recycling_cartridges_stasuses` ON `recycling_cartridges`.`status_id`=`recycling_cartridges_stasuses`.`id`
-LEFT JOIN (
-	SELECT dt, remark, event_id FROM `recycling_events_admins`
-	 WHERE `event_typ_id`='1'
-	 ) AS a ON a.event_id=`recycling_events`.id
-LEFT JOIN `recycling_breaks_content` ON `recycling_breaks_content`.`eventId`=`recycling_events`.`id`
-LEFT JOIN `recycling_checks` ON `recycling_checks`.`id`=`recycling_breaks_content`.`checkId`
-AND `is_paid`='0'
-*/
-
-
 
 		$eventsQuery = $DB->query("
 SELECT 
@@ -514,9 +465,7 @@ SELECT
 `recycling_breaks_content`.`checkId`,
 `recycling_breaks_content`.`worksCount`,
 `recycling_checks`.`checkName`,
-
 UNIX_TIMESTAMP(`recycling_checks`.`checkDate`) AS `checkDateU`,
-
 `recycling_checks`.`isPay`
  FROM `recycling_events`
 LEFT JOIN `recycling_cartridges` ON `recycling_events`.`cartridge_out_id`=`recycling_cartridges`.`id`
@@ -531,15 +480,12 @@ LEFT JOIN `recycling_checks` ON `recycling_checks`.`id`=`recycling_breaks_conten
 WHERE
 ".(($id > 0) ? "
 `recycling_breaks_content`.`breakId`='$id'" : "
-`recycling_events`.`office_id` IN (SELECT office_id FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]')
-
+`recycling_events`.`office_id` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."')
 AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content` WHERE `breakId` IS NULL)")."
  ORDER BY `recycling_printers`.`companyId`, `dt` DESC");
 //AND `recycling_cartridges`.`status_id` IN ('1','0')
 
 
-	
-		$statusCompanies = array();
 		
 		$return = '<form method="post" action="'.$_SERVER['PHP_SELF'].'">
 		<fieldset><legend>События для разбивки:</legend>
@@ -561,9 +507,10 @@ AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content`
 			<tbody>		
 		';
 		
+		$statusCompanies = array();
+	
 		if($DB->num_rows($eventsQuery) > 0){
 			$companyId = 0;
-			$statusCompanies = array();
 			while($pos = $DB->fetch_assoc($eventsQuery)){				
 				if($companyId != $pos['companyId']){
 					$statusCompanies[$pos['company']] = 1;					
@@ -600,7 +547,12 @@ AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content`
 		
 		if($id > 0){
 			
-			$checkVariants = $DB->query("SELECT `recycling_checks`.*, UNIX_TIMESTAMP(`checkDate`) as `checkDateU`, `recycling_companies`.`company`, `recycling_counteragents`.`refCompanyName` FROM `recycling_checks` LEFT JOIN `recycling_counteragents` ON `recycling_counteragents`.`id`=`recycling_checks`.`companyRefId` LEFT JOIN `recycling_companies` ON `recycling_companies`.`id`=`recycling_checks`.`companyId` WHERE `breakId`='$id'");
+			$checkVariants = $DB->query("SELECT
+			`recycling_checks`.*, UNIX_TIMESTAMP(`checkDate`) as `checkDateU`, `recycling_companies`.`company`, `recycling_counteragents`.`company` AS `refCompanyName` 
+			FROM `recycling_checks` 
+			LEFT JOIN (SELECT * FROM `recycling_companies` WHERE `companyType`='2') AS `recycling_counteragents` ON `recycling_counteragents`.`id`=`recycling_checks`.`companyRefId` 
+			LEFT JOIN `recycling_companies` ON `recycling_companies`.`id`=`recycling_checks`.`companyId` 
+			WHERE `breakId`='$id'");
 			$checkVariantsArray = array();
 			while($checkVariant = $DB->fetch_assoc($checkVariants))	$checkVariantsArray[$checkVariant['id']] = "$checkVariant[checkName] от ".$intlFormatter->format($checkVariant['checkDateU']).", для $checkVariant[company], получен от $checkVariant[refCompanyName], оплата: ".(($checkVariant['isPay'] == 0) ? 'не оплачен!' : 'оплачен');
 			$return .= '<fieldset class="editFormFieldset"><legend>Счета:</legend>';
@@ -614,21 +566,13 @@ AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content`
 		}else{
 			
 			if($DB->num_rows($eventsQuery) > 0){
-			
-				$officesLists = $DB->query("SELECT * FROM `recycling_offices` 
-	WHERE id IN (SELECT office_id FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]')
-	ORDER BY `recycling_offices`.`id`");
-				while($office = $DB->fetch_assoc($officesLists)){
-					$officesList[$office['id']] = $office['office'];
-				}
-			
 				$return .= '
 				<fieldset class="editFormFieldset"><legend>Создание разбивки:</legend>
 					<table>
 						<tbody>
 						<tr><td>Название</td><td><input type="text" name="breakName" placeholder="Заправка [номер]"></td></tr>						
 						<tr><td>Дата</td><td><input type="date" name="breakDate" value="'.date("Y-m-d").'"></td></tr>						
-						<tr><td>Офис</td><td>'.show_select(0, $officesList, 'officeId', true).'</td></tr>
+						<tr><td>Офис</td><td>'.show_select(0, $_SESSION['myOfficesList'], 'officeId', true).'</td></tr>
 						<tr><td colspan="2"><input type="submit" name="cmdAddEventsIntoBreak" value="сохранить"></td></tr>
 						</tbody>
 					</table>
@@ -648,9 +592,10 @@ AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content`
 			<tbody>		
 		';
 		
-			$breaksList = $DB->query("SELECT `recycling_breaks`.*, `recycling_offices`.`office` FROM `recycling_breaks` 
+			$breaksList = $DB->query("SELECT `recycling_breaks`.*, `recycling_offices`.`office`, `a`.`breakId` AS `mark` FROM `recycling_breaks` 
 LEFT JOIN `recycling_offices` ON `recycling_breaks`.`officeId`=`recycling_offices`.`id`
-WHERE `recycling_breaks`.`officeId` IN(SELECT office_id FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]')
+LEFT JOIN (SELECT breakId FROM `recycling_breaks_content` WHERE checkId IS NULL GROUP BY breakId) AS a ON a.breakId=recycling_breaks.id
+WHERE `recycling_breaks`.`officeId` IN('".implode("','", array_keys($_SESSION['myOfficesList']))."')
 ORDER BY breakDate DESC");		
 
 			if($DB->num_rows($breaksList)){
@@ -658,13 +603,13 @@ ORDER BY breakDate DESC");
 				while($breakContent = $DB->fetch_assoc($breaksList)){
 					$return .= "
 						<tr>
-							<td><a href=\"?w=breaks&amp;id=$breakContent[id]\">$breakContent[breakName] от ".$intlFormatter->format($breakContent['breakDate'])."</a></td>
+							<td><a href=\"?w=breaks&amp;id=$breakContent[id]\">$breakContent[breakName] от ".$intlFormatter->format($breakContent['breakDate'])."</a>".(($breakContent['mark'] > 0) ? ' <span class="warnBlinker">!</span>' : '')."</td>
 							<td>$breakContent[office]</td>
 						</tr>							
 					";
 				}		
 			}else{
-				$return .= '<tr><td colspan="'.(($id > 0) ? 11 : 8).'" style="text-align: center;"><i>Нет данных</i></td></tr>';
+				$return .= '<tr><td colspan="2" style="text-align: center;"><i>Нет данных</i></td></tr>';
 			}
 		
 		$return .= '</tbody>
@@ -692,14 +637,15 @@ LEFT JOIN `recycling_cartridges_stasuses` ON `recycling_cartridges`.`status_id`=
 LEFT JOIN `recycling_offices` ON `recycling_cartridges`.`office_id`=`recycling_offices`.`id`
 LEFT JOIN `recycling_printers` ON `recycling_printers`.`cartridge_inside`=`recycling_cartridges`.`id`
 LEFT JOIN `recycling_brands` ON `recycling_brands`.`id`=`recycling_cartridges`.`brandId`
-WHERE `recycling_cartridges`.`office_id` IN (SELECT office_id FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]')
+WHERE `recycling_cartridges`.`office_id` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."')
 ORDER BY `recycling_cartridges`.`office_id`, status_id, id");
 
 		$allowOffices = $DB->query("SELECT `recycling_offices`.* FROM `recycling_offices` LEFT JOIN `recycling_admins_offices` ON `recycling_offices`.`id`=`recycling_admins_offices`.`office_id` WHERE `recycling_admins_offices`.`admin_id`='$_SESSION[adminId]'");
 
 		$return = '<form name="formRegCartridge" method="post" action="'.$_SERVER['PHP_SELF'].'">	
-		<fieldset class="editFormFieldset"><legend>регистрация нового картриджа:</legend>
+		<fieldset class="editFormFieldset">
 		<table>
+			<caption>Регистрация нового картриджа:</caption>
 			<tbody>		
 				<tr>
 					<td>новый картридж в офис:</td>
@@ -760,7 +706,7 @@ ORDER BY `recycling_cartridges`.`office_id`, status_id, id");
 	function show_cartridge_replace_form($printerId = 0){
 		global $DB;
 
-		$allowPrinters = $DB->query("SELECT * FROM `recycling_printers` WHERE `officeId` IN (SELECT office_id FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]') AND `statusId` IN (2,5) ORDER BY printerName");
+		$allowPrinters = $DB->query("SELECT * FROM `recycling_printers` WHERE `officeId` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."') AND `statusId` IN (2,5) ORDER BY printerName");
 
 		$selectPrinter = ($printerId > 0) ? $printerId : (($_SESSION['printerRCId'] > 0) ? $_SESSION['printerRCId'] : 0);
 /*		
@@ -771,8 +717,9 @@ ORDER BY `recycling_cartridges`.`office_id`, status_id, id");
 		
 		$return = '
 		<form name="formChangeCartridge" method="post" action="'.$_SERVER['PHP_SELF'].'">
-		<fieldset class="editFormFieldset"><legend>Замена картриджа:</legend>
+		<fieldset class="editFormFieldset">
 		<table>
+			<caption>Замена картриджа:</caption>	
 			<tbody>
 			<tr><td>Принтер:</td>
 			<td><select name="printerRCId" onChange="formChangeCartridge.submit();" '.(($printerId > 0) ? 'disabled' : '').'><option value="0">--- выберите ---</option>';
@@ -825,7 +772,6 @@ AND cartridge_model_id IN (SELECT `cartridgeModelId` FROM `recycling_printers_ca
 	
 	function portalShow_GET_printers(){
 		global $DB;
-		$return = '';
 		
 		$printerList = $DB->query("SELECT 
  `recycling_printers_stasuses`.`stasus`,
@@ -848,13 +794,10 @@ AND cartridge_model_id IN (SELECT `cartridgeModelId` FROM `recycling_printers_ca
 FROM `recycling_printers_cartridges`
 LEFT JOIN `recycling_cartridges_models` ON `recycling_printers_cartridges`.`cartridgeModelId`=`recycling_cartridges_models`.`id`
 GROUP BY `recycling_printers_cartridges`.`printerModelId`) AS `cartridgeCross` ON `cartridgeCross`.`printerModelId`=`recycling_printers`.`modelId`
- WHERE `recycling_printers`.`officeId` IN (SELECT `office_id` FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]')
+ WHERE `recycling_printers`.`officeId` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."')
   ORDER BY office, statusId DESC, companyId, printerName");
 
-		$printerId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-		$return .= show_printer_edit_element($printerId);
-
-		$return .= '		
+		$return = '		
 		<fieldset><legend>Принтеры:</legend>		
 		<table class="mainTable zebra" id="ajaxedRows">
 			<thead>
@@ -897,7 +840,7 @@ GROUP BY `recycling_printers_cartridges`.`printerModelId`) AS `cartridgeCross` O
 			}
 		
 			$return .= '
-			<tr><td colspan="11" style="text-align: right;">[<a href="?w=printers&new">Добавить принтер</a>]</td></tr>			
+			<tr data-id="new" data-target="getPrinterInfoElement"><td colspan="11" style="text-align: right;">[<a class="add-row" href="javascript://">Добавить принтер</a>]</td></tr>			
 		</tbody>
 		</table>
 		</fieldset>';		
@@ -955,12 +898,12 @@ ON `recycling_cartridges`.`cartridge_model_id`=`recycling_cartridges_models`.`id
 LEFT JOIN (SELECT `recycling_cartridges_models`.`cartridgeName`, `recycling_cartridges`.`id`, `recycling_cartridges`.`inv_num` FROM `recycling_cartridges` LEFT JOIN `recycling_cartridges_models`
 ON `recycling_cartridges`.`cartridge_model_id`=`recycling_cartridges_models`.`id`) AS `cartrige_new` ON `cartrige_new`.`id`=`recycling_events`.`cartridge_new_id`
 LEFT JOIN (
-	SELECT GROUP_CONCAT(CONCAT( DATE_FORMAT( FROM_UNIXTIME(`recycling_events_admins`.`dt`), '%Y-%m-%d %H:%i'),' - ',`recycling_admins`.`fio`,': ',`recycling_events_stasuses`.`stasus`, ' <i>', `recycling_events_admins`.`remark`,'</i>') SEPARATOR '<br/>') AS event_txt, recycling_events_admins.`event_id` FROM recycling_events_admins
+	SELECT GROUP_CONCAT(CONCAT( DATE_FORMAT( FROM_UNIXTIME(`recycling_events_admins`.`dt`), '%Y-%m-%d %H:%i'),' - ',`recycling_admins`.`adminName`,': ',`recycling_events_stasuses`.`stasus`, ' <i>', `recycling_events_admins`.`remark`,'</i>') SEPARATOR '<br/>') AS event_txt, recycling_events_admins.`event_id` FROM recycling_events_admins
 		LEFT JOIN `recycling_events_stasuses` ON `recycling_events_admins`.`event_typ_id`=`recycling_events_stasuses`.`id`
 		LEFT JOIN `recycling_admins` ON `recycling_events_admins`.`admin_id`=`recycling_admins`.`id`
 	 GROUP BY event_id ORDER BY `recycling_events_admins`.`id`
 ) AS event_txt ON `event_txt`.`event_id`=`recycling_events`.`id`
-WHERE `recycling_events`.`office_id` IN (SELECT `office_id` FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]')
+WHERE `recycling_events`.`office_id` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."')
 ORDER BY dt DESC LIMIT $_SESSION[journalEvents]");
 
 		while ($row = $DB->fetch_assoc($journalQuery)){
@@ -1004,47 +947,5 @@ ORDER BY dt DESC LIMIT $_SESSION[journalEvents]");
 			$DB->query("INSERT INTO `recycling_offices`(`office`) VALUES ('".$DB->escape($officeName)."'); ");
 		}
 	}
-	
-	function addNewUser(){
-		global $DB;
-		if($_SESSION['superAdm'] == 1){
-			$admFio = mb_substr($_POST['newAdminName'], 0, 30);
-			if(mb_strlen($admFio) < 5){
-				print "Слишком короткое имя (менее 5 символов)";
-				exit;
-			}
-				
-			if(mb_strlen($_POST['adminAuthPass']) < 5){
-				print "Слишком короткий пароль (менее 5 символов)";
-				exit;
-			}
-				
-			if($_POST['adminAuthPass'] != $_POST['adminAuthPass2th']){
-				print "Введенные пароли не совпадают";
-				exit;
-			}
-				
-			if($DB->num_rows("SELECT * FROM `recycling_admins` WHERE `fio`='".$DB->escape($admFio)."'") > 0){
-				print "Админ с таким ФИО уже есть";
-				exit;
-			}
-		
-			$salt = md5(time());
-			$DB->query("INSERT INTO `recycling_admins`(`fio`,`pass`,`salt`,`datereg`) VALUES ('".$DB->escape($admFio)."','".passHash($_POST['adminAuthPass'], $salt)."','$salt',NOW())");
-		}		
-	}
-	
-	function saveCartridgeParams($cartridgeName, $cartridgeСolor, $cartridgeCapacity, $cartridgeModelId){
-		global $DB, $portalCartridgeColors;
-		if(mb_strlen($cartridgeName) <= 2){ print "Слишком короткое название модели"; exit; }		
-		if(!array_key_exists($cartridgeСolor, $portalCartridgeColors) || $cartridgeСolor == 0){ print "Неверный цвет"; exit; }
-		$DB->query("INSERT IGNORE INTO `recycling_cartridges_models`(`id`) VALUES ('$cartridgeModelId')");		
-		$DB->query("UPDATE `recycling_cartridges_models` SET
-		`cartridgeName`='".$DB->escape($cartridgeName)."',
-		`cartridgeColor`='$cartridgeСolor',
-		`cartridgeCapacity`='$cartridgeCapacity'
-		WHERE `id`='$cartridgeModelId'");
-		return true;
-	}
-	
+
 ?>

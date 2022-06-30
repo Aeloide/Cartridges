@@ -25,13 +25,16 @@ ORDER BY `recycling_cartridges_worknames`.`id`");
 	}
 	
 	function ajax_GET_getCheckChangeElement(){
-		$checkId = (int)$_GET['id'];
-		return show_check_edit_element($checkId);	
+		return show_check_edit_element((int)$_GET['id']);	
 	}
 	
 	function ajax_GET_getPrinterInfoElement(){
-		$printerId = (int)$_GET['id'];
-		return show_printer_edit_element($printerId);	
-	}	
+		return show_printer_edit_element((int)$_GET['id']);	
+	}
+
+	function ajax_GET_getAdminEditElement(){
+		return show_admin_edit_element((int)$_GET['id']);	
+	}
+	
 
 ?>

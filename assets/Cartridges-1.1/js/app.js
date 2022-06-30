@@ -18,24 +18,25 @@
 
 	document.addEventListener("DOMContentLoaded", function(event) {
 		document.getElementById("defaultOpenTab")?.click();
-		
-		var table = document.getElementById("ajaxedRows");
-		for(const loadWorksButton of document.querySelectorAll('.add-row')){
-			loadWorksButton.addEventListener("click", async (e) => {
-				thisRow = loadWorksButton.closest('tr');
-				nextRowIndex = thisRow.rowIndex + 1;
-				if(table.rows[nextRowIndex] && table.rows[nextRowIndex].classList.contains('addedRow')){			
-					table.deleteRow(nextRowIndex);
-				}else{
-					var responseText = await loadUrl('ajax.php?t='+thisRow.dataset.target+'&id='+thisRow.dataset.id);
-					var nextRow = table.insertRow(nextRowIndex);
-					nextRow.classList.add('addedRow');
-					colspanValue = thisRow.firstElementChild.getAttribute('colspan');
-					if(!colspanValue) colspanValue = thisRow.cells.length;
-					nextRow.innerHTML = '<td colspan="'+colspanValue+'">'+responseText+'</td>';
-				}		
-			});
-		}	
+		for(const table of document.querySelectorAll('#ajaxedRows')){
+			for(const loadWorksButton of table.querySelectorAll('.add-row')){
+				loadWorksButton.addEventListener("click", async (e) => {
+					thisRow = loadWorksButton.closest('tr');
+					nextRowIndex = thisRow.rowIndex + 1;
+					if(table.rows[nextRowIndex] && table.rows[nextRowIndex].classList.contains('addedRow')){			
+						table.deleteRow(nextRowIndex);
+					}else{
+						var responseText = await loadUrl('ajax.php?t='+thisRow.dataset.target+'&id='+thisRow.dataset.id);
+						var nextRow = table.insertRow(nextRowIndex);
+						nextRow.classList.add('addedRow');
+						colspanValue = thisRow.firstElementChild.getAttribute('colspan');
+						if(!colspanValue) colspanValue = thisRow.cells.length;
+						nextRow.innerHTML = '<td colspan="'+colspanValue+'">'+responseText+'</td>';
+						nextRow.scrollIntoView({block: "center", behavior: "smooth"});
+					}		
+				});
+			}
+		}
 	});
 
 

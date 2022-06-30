@@ -9,7 +9,7 @@
 	$intlFormatter = new IntlDateFormatter('ru_RU', IntlDateFormatter::SHORT, IntlDateFormatter::SHORT);
 	$intlFormatter->setPattern('d MMMM YYYYг. HH:mm');
 	
-	$_SESSION['journalEvents'] = isset($_SESSION['journalEvents']) ? $_SESSION['journalEvents'] : 200;
+	$_SESSION['journalEvents'] = isset($_SESSION['journalEvents']) ? $_SESSION['journalEvents'] : 300;
 	$_SESSION['superAdm'] = isset($_SESSION['superAdm']) ? $_SESSION['superAdm'] : 0;
 	
 	$projectName = 'Cartridges-1.1';
@@ -19,6 +19,15 @@
 //	$DB->connect('127.0.0.1','user','password','database',0);
 //	$DB->query("USE `cartriges`");
 	$DB->query("SET NAMES 'utf8mb4'");
+	
+	if(isset($_SESSION['adminId'])){
+		if(!isset($_SESSION['myOfficesList'])){
+			$officesLists = $DB->query("SELECT * FROM `recycling_offices` WHERE id IN (SELECT office_id FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]') ORDER BY `recycling_offices`.`id`");
+			while($office = $DB->fetch_assoc($officesLists)){
+				$_SESSION['myOfficesList'][$office['id']] = $office['office'];
+			}		
+		}
+	}
 	
 	require('assets/'.$projectName."/functions.php");
 	require('assets/'.$projectName."/functions.forms.php");	
@@ -35,7 +44,8 @@
 	);
 	
 	$portalPrinterTypes = array(0 => '== Выберите ==', 1 => 'МФУ', 2 => 'Принтер', 3 => 'Копир');
-	$portalYesNo = array(0 => '== Выберите ==', 1 => 'Да', 2 => 'Нет'); 
+	$portalYesNo = array(0 => '== Выберите ==', 1 => 'Да', 2 => 'Нет');
+	$portalCompanyTypes = array(1 => 'На обслуживании', 2 => 'Сервисная компания (заправки, ремонты)');
 	
 	function passHash($password, $salt){
 		return md5(md5(md5($password).$salt).$salt);
