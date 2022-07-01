@@ -124,7 +124,7 @@ ON `a`.`admin_id`=`recycling_admins`.`id` ORDER BY adminName");
 			<tbody>
 				<tr><td>Название счёта</td><td><input type="text" name="checkName" value="'.$checkParams['checkName'].'"></td></tr>
 				<tr><td>Дата счёта</td><td><input type="date" name="checkDate" value="'.$checkParams['checkDate'].'"></td></tr>
-				'.(($_SESSION['superAdm'] > 0) ? '<tr><td>Дата добавления</td><td><input type="date" name="checkDateAdded" value="'.$checkParams['checkDateAdded'].'"></td></tr>' : '').'
+				'.(($_SESSION['superAdm'] > 0) ? '<tr><td>Дата добавления</td><td><input type="date" name="checkDateAdded" value="'.(($checkParams['checkDateAdded'] == '') ? date("Y-m-d") : $checkParams['checkDateAdded']).'"></td></tr>' : '').'
 				<tr><td>Сумма счёта</td><td><input type="text" name="checkSumm" value="'.$checkParams['checkSumm'].'"></td></tr>
 				<tr><td>Разбивка</td><td>'.show_select($checkParams['breakId'], $breaksArray, 'breakId', true).'</td></tr>
 				<tr><td>Кому выставлен</td><td>'.show_select($checkParams['companyId'], $companysArray, 'companyId', true).'</td></tr>

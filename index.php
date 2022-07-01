@@ -249,7 +249,7 @@
 				$checkId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_checks`");
 				$DB->query("INSERT INTO `recycling_checks`(`id`) VALUES('$checkId')");
 			}			
-			$DB->query("UPDATE `recycling_checks` SET `checkDate`='$checkDate', `checkDateAdded`='$checkDateAdded', `checkName`='".$DB->escape($checkName)."', `checkSumm`='$checkSumm', `companyRefId`='$companyRefId', `isPay`='$isPay', `companyId`='$companyId', `breakId`='$breakId' WHERE `id`='$checkId'");
+			$DB->query("UPDATE `recycling_checks` SET `checkDate`='$checkDate', `checkDateAdded`='".(($checkDateAdded == '') ? date("Y-m-d") : $checkDateAdded)."', `checkName`='".$DB->escape($checkName)."', `checkSumm`='$checkSumm', `companyRefId`='$companyRefId', `isPay`='$isPay', `companyId`='$companyId', `breakId`='$breakId' WHERE `id`='$checkId'");
 			
 			if(isset($_FILES)){				
 				setlocale(LC_ALL, 'ru_RU.utf8'); /* Русская локаль для корректной работы basename() */
