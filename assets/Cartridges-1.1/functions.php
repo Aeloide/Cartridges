@@ -63,7 +63,7 @@ ORDER BY `recycling_checks`.`checkDateAdded` DESC");
 `recycling_events`.`id`,
 `recycling_events`.`dt`,
 `recycling_printers`.`printerName`,
-`recycling_offices`.`office`,
+`recycling_offices`.`officeName`,
 `recycling_cartridges`.`inv_num`,
 `recycling_cartridges_models`.`cartridgeName`
 FROM `recycling_events`
@@ -95,7 +95,7 @@ ORDER BY `recycling_events`.`dt` DESC");
 							<td><b>$cartridgeEvent[inv_num]</b> ($cartridgeEvent[cartridgeName])</td>
 							<td>$cartridgeEvent[printerName]</td>
 							<td>".$intlFormatter->format($cartridgeEvent['dt'])."</td>
-							<td>$cartridgeEvent[office]</td>				
+							<td>$cartridgeEvent[officeName]</td>				
 						</tr>";			
 			}
 		}else{
@@ -201,12 +201,65 @@ ORDER BY adminName");
 			</table>
 			</fieldset>
 			
+			<fieldset><legend>Офисы:</legend>		
+			<table class="mainTable zebra" id="ajaxedRows">
+				<thead>
+					<tr>
+						<th>Офис</th>
+						<th>Событий</th>
+						<th>Принтеров</th>	
+						<th>Картиджей</th>
+						<th>Компаний</th>						
+						<th>Админы</th>
+					</tr>
+				</thead>
+				<tbody>';
+
+			$officeQuery = $DB->query("SELECT `recycling_offices`.*, adminName,
+events.countEvents,
+printers.countPrinters ,
+cartridges.countCartridges,
+compaines.countCompanies
+FROM `recycling_offices`
+LEFT JOIN (SELECT GROUP_CONCAT(adminName SEPARATOR ', ') AS adminName, office_id FROM `recycling_admins_offices` LEFT JOIN `recycling_admins` ON `recycling_admins_offices`.`admin_id`=`recycling_admins`.`id` GROUP BY office_id) AS `names` ON `names`.`office_id`=`recycling_offices`.`id`
+
+LEFT JOIN (SELECT COUNT(*) AS countPrinters, officeId FROM `recycling_printers` GROUP BY officeId) AS `printers` ON printers.officeId=`recycling_offices`.`id`
+LEFT JOIN (SELECT COUNT(*) AS countCartridges, office_id FROM `recycling_cartridges` GROUP BY office_id) AS `cartridges` ON cartridges.office_id=`recycling_offices`.`id`
+LEFT JOIN (SELECT COUNT(*) AS countCompanies, officeId FROM `recycling_companies` GROUP BY officeId) AS `compaines` ON compaines.officeId=`recycling_offices`.`id`
+LEFT JOIN (SELECT COUNT(*) AS countEvents, office_id FROM `recycling_events` GROUP BY office_id) AS `events` ON events.office_id=`recycling_offices`.`id`
+
+ORDER BY `id`");
+
+			if($DB->num_rows($officeQuery) > 0){
+				while($pos = $DB->fetch_assoc($officeQuery)){
+					$return .= "
+						<tr data-id=\"$pos[id]\" data-target=\"getOfficeEditElement\" id=\"office_$pos[id]\" class=\"blinking\">
+							<td><a href=\"javascript://\" class=\"add-row\">$pos[officeName]</a></td>
+							<td>$pos[countEvents]</td>							
+							<td>$pos[countPrinters]</td>	
+							<td>$pos[countCartridges]</td>	
+							<td>$pos[countCompanies]</td>								
+							<td>$pos[adminName]</td>						
+						</tr>";
+				}				
+			}else{
+				$return .= '<tr><td colspan="6">Нет данных.</td></tr>';				
+			}							
+			
+			$return .= '
+				<tr data-id="new" data-target="getOfficeEditElement">
+					<td colspan="6" style="text-align:right;">[<a href="javascript://" class="add-row">Добавить офис</a>]</td>
+				</tr>
+				</tbody>
+			</table>			
+			</fieldset>			
+			
 			<fieldset><legend>Компании:</legend>		
 			<table class="mainTable zebra" id="ajaxedRows">
 				<thead>
 					<tr>
 						<th>Компания</th>
-						<th>Инн</th>
+						<th>ИНН</th>
 						<th>Тип</th>						
 						<th>Офис</th>
 						<th>Админы</th>
@@ -215,21 +268,21 @@ ORDER BY adminName");
 				<tbody>		
 			';
 			
-			$companyQuery = $DB->query("SELECT `recycling_companies`.`id`, `recycling_companies`.`companyType`, `recycling_companies`.`company`, `recycling_companies`.`inn`, `recycling_offices`.`office`, names.adminName FROM `recycling_companies`
-LEFT JOIN `recycling_offices` ON `recycling_companies`.`office_id`=`recycling_offices`.`id`
+			$companyQuery = $DB->query("SELECT `recycling_companies`.`id`, `recycling_companies`.`companyType`, `recycling_companies`.`company`, `recycling_companies`.`inn`, `recycling_offices`.`officeName`, names.adminName FROM `recycling_companies`
+LEFT JOIN `recycling_offices` ON `recycling_companies`.`officeId`=`recycling_offices`.`id`
 LEFT JOIN (
  SELECT GROUP_CONCAT(adminName SEPARATOR ', ') AS adminName, office_id FROM `recycling_admins_offices`
- LEFT JOIN `recycling_admins` ON `recycling_admins_offices`.`admin_id`=`recycling_admins`.`id`) AS `names` ON `names`.`office_id`=`recycling_companies`.`office_id`
-ORDER BY `recycling_companies`.`companyType`, `recycling_companies`.`office_id`, `company`");			
+ LEFT JOIN `recycling_admins` ON `recycling_admins_offices`.`admin_id`=`recycling_admins`.`id` GROUP BY office_id) AS `names` ON `names`.`office_id`=`recycling_companies`.`officeId`
+ORDER BY `recycling_companies`.`companyType`, `recycling_companies`.`officeId`, `company`");			
 			
 			if($DB->num_rows($companyQuery) > 0){			
 				while($pos = $DB->fetch_assoc($companyQuery)){
 					$return .= "
 						<tr data-id=\"$pos[id]\" data-target=\"getCompanyEditElement\">
-							<td><a href=\"javascript://\" class=\"add-row\"><b>$pos[company]</b></a></td>
+							<td><a href=\"javascript://\" class=\"add-row\">$pos[company]</a></td>
 							<td>$pos[inn]</td>							
 							<td>".$portalCompanyTypes[$pos['companyType']]."</td>
-							<td>$pos[office]</td>
+							<td>$pos[officeName]</td>
 							<td>$pos[adminName]</td>						
 						</tr>";
 				}
@@ -243,25 +296,9 @@ ORDER BY `recycling_companies`.`companyType`, `recycling_companies`.`office_id`,
 				</tr>				
 				</tbody>
 			</table>
-			</fieldset>';
+			</fieldset>';			
+
 		}
-		
-		if($_SESSION['superAdm']){
-			$return .= '
-			<form name="form4" method="post" action="'.$_SERVER['PHP_SELF'].'">			
-				Название офиса <input type="text" name="newOfficeName">			
-				<input type="submit" name="cmdAddOffice" value="добавить">			
-			</form>
-			<br>
-			<form name="form5" method="post" action="'.$_SERVER['PHP_SELF'].'">			
-				Компания <input type="text" name="newCompanyName">			
-				<input type="submit" name="cmdAddCompany" value="добавить">			
-			</form>
-			<br>
-			';
-		}		
-		
-		
 		return $return;		
 	}	
 	
@@ -283,7 +320,7 @@ UNIX_TIMESTAMP(`recycling_checks`.`checkDateAdded`) AS `checkDateAddedU`,
 LEFT JOIN `recycling_companies` ON `recycling_companies`.`id`=`recycling_checks`.`companyId`
 LEFT JOIN (SELECT * FROM `recycling_companies` WHERE `companyType`='2') AS `recycling_counteragents` ON `recycling_counteragents`.`id`=`recycling_checks`.`companyRefId`
 LEFT JOIN `recycling_breaks` ON `recycling_breaks`.`id`=`recycling_checks`.`breakId`
-WHERE `recycling_checks`.`companyId` IN(SELECT `id` FROM `recycling_companies` WHERE `office_id` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."'))
+WHERE `recycling_checks`.`companyId` IN(SELECT `id` FROM `recycling_companies` WHERE `officeId` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."'))
 ORDER BY `recycling_checks`.`id`");
 		
 		$return = '<fieldset>
@@ -485,8 +522,6 @@ AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content`
  ORDER BY `recycling_printers`.`companyId`, `dt` DESC");
 //AND `recycling_cartridges`.`status_id` IN ('1','0')
 
-
-		
 		$return = '<form method="post" action="'.$_SERVER['PHP_SELF'].'">
 		<fieldset><legend>События для разбивки:</legend>
 		<input type="hidden" name="breakId" value="'.$id.'">
@@ -592,7 +627,7 @@ AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content`
 			<tbody>		
 		';
 		
-			$breaksList = $DB->query("SELECT `recycling_breaks`.*, `recycling_offices`.`office`, `a`.`breakId` AS `mark` FROM `recycling_breaks` 
+			$breaksList = $DB->query("SELECT `recycling_breaks`.*, `recycling_offices`.`officeName`, `a`.`breakId` AS `mark` FROM `recycling_breaks` 
 LEFT JOIN `recycling_offices` ON `recycling_breaks`.`officeId`=`recycling_offices`.`id`
 LEFT JOIN (SELECT breakId FROM `recycling_breaks_content` WHERE checkId IS NULL GROUP BY breakId) AS a ON a.breakId=recycling_breaks.id
 WHERE `recycling_breaks`.`officeId` IN('".implode("','", array_keys($_SESSION['myOfficesList']))."')
@@ -604,7 +639,7 @@ ORDER BY breakDate DESC");
 					$return .= "
 						<tr>
 							<td><a href=\"?w=breaks&amp;id=$breakContent[id]\">$breakContent[breakName] от ".$intlFormatter->format($breakContent['breakDate'])."</a>".(($breakContent['mark'] > 0) ? ' <span class="warnBlinker">!</span>' : '')."</td>
-							<td>$breakContent[office]</td>
+							<td>$breakContent[officeName]</td>
 						</tr>							
 					";
 				}		
@@ -626,7 +661,7 @@ ORDER BY breakDate DESC");
 		
 		$cartridges = $DB->query("SELECT 
 `recycling_cartridges_stasuses`.`stasus`,
-`recycling_offices`.`office`,
+`recycling_offices`.`officeName`,
 `recycling_printers`.`printerName`,
 `recycling_cartridges_models`.`cartridgeName`,
 `recycling_brands`.`brandName`,
@@ -650,7 +685,7 @@ ORDER BY `recycling_cartridges`.`office_id`, status_id, id");
 				<tr>
 					<td>новый картридж в офис:</td>
 					<td><select name="officeRegcartridgeId" onChange="formRegCartridge.submit();"><option value="0" selected>-- выберите --</option>';
-						while($allowOffice = $DB->fetch_assoc($allowOffices)) $return .= "<option value='$allowOffice[id]'".(($allowOffice['id'] == $_SESSION['officeRegcartridgeId']) ? ' selected' : '') . ">$allowOffice[office]</option>";
+						while($allowOffice = $DB->fetch_assoc($allowOffices)) $return .= "<option value='$allowOffice[id]'".(($allowOffice['id'] == $_SESSION['officeRegcartridgeId']) ? ' selected' : '') . ">$allowOffice[officeName]</option>";
 		$return .= '</select></td></tr>';	
 
 		if((int)$_SESSION['officeRegcartridgeId'] > 0){
@@ -686,7 +721,7 @@ ORDER BY `recycling_cartridges`.`office_id`, status_id, id");
 			while($cartridge = $DB->fetch_assoc($cartridges)){
 				$return .= "
 				<tr>
-					<td>$cartridge[office]</td>
+					<td>$cartridge[officeName]</td>
 					<td><a href=\"?cartridgeHistory=$cartridge[id]\"><b>$cartridge[inv_num]</b> ($cartridge[cartridgeName])</a></td>
 					<td>$cartridge[brandName]</td>
 					<td>$cartridge[stasus]</td>
@@ -776,7 +811,7 @@ AND cartridge_model_id IN (SELECT `cartridgeModelId` FROM `recycling_printers_ca
 		$printerList = $DB->query("SELECT 
  `recycling_printers_stasuses`.`stasus`,
  `recycling_companies`.`company`,
- `recycling_offices`.`office`,
+ `recycling_offices`.`officeName`,
  `recycling_cartridges`.`inv_num`,
  `recycling_cartridges_models`.`cartridgeName` AS cartridge_txt,
  `recycling_printers_types`.`printer_type_txt`,
@@ -795,7 +830,7 @@ FROM `recycling_printers_cartridges`
 LEFT JOIN `recycling_cartridges_models` ON `recycling_printers_cartridges`.`cartridgeModelId`=`recycling_cartridges_models`.`id`
 GROUP BY `recycling_printers_cartridges`.`printerModelId`) AS `cartridgeCross` ON `cartridgeCross`.`printerModelId`=`recycling_printers`.`modelId`
  WHERE `recycling_printers`.`officeId` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."')
-  ORDER BY office, statusId DESC, companyId, printerName");
+  ORDER BY officeName, statusId DESC, companyId, printerName");
 
 		$return = '		
 		<fieldset><legend>Принтеры:</legend>		
@@ -822,7 +857,7 @@ GROUP BY `recycling_printers_cartridges`.`printerModelId`) AS `cartridgeCross` O
 					$return .= "
 						<tr data-id=\"$row[id]\" data-target=\"getPrinterInfoElement\" id=\"printer_$row[id]\" class=\"blinking\">
 							<td>$row[id]</td>
-							<td>$row[office]</td>
+							<td>$row[officeName]</td>
 							<td><a href=\"?statistic=printer&id=$row[id]\">$row[printerName]</a></td>
 							<td>$row[printer_type_txt]</td>
 							<td>$row[company]</td>
@@ -934,18 +969,6 @@ ORDER BY dt DESC LIMIT $_SESSION[journalEvents]");
 		</fieldset>
 		</form>';		
 		return $return;
-	}
-	
-	function addNewOffice($newOfficeName){
-		global $DB;
-		if($_SESSION['superAdm'] == 1){
-			$officeName = mb_substr($newOfficeName, 0, 50);
-			if(mb_strlen($officeName) != mb_strlen($newOfficeName)){
-				print "Слишком длинное название";
-				exit;
-			}
-			$DB->query("INSERT INTO `recycling_offices`(`office`) VALUES ('".$DB->escape($officeName)."'); ");
-		}
 	}
 
 ?>

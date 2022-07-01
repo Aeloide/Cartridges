@@ -85,6 +85,7 @@ caption {
 	border-spacing: 1px;
 	font-size: 14px;
 	white-space: nowrap;
+	min-width: 600px;
 /*	width: 100%;*/
 }
 

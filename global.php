@@ -22,9 +22,9 @@
 	
 	if(isset($_SESSION['adminId'])){
 		if(!isset($_SESSION['myOfficesList'])){
-			$officesLists = $DB->query("SELECT * FROM `recycling_offices` WHERE id IN (SELECT office_id FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]') ORDER BY `recycling_offices`.`id`");
+			$officesLists = $DB->query("SELECT `id`, `officeName` FROM `recycling_offices` WHERE id IN (SELECT office_id FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]') ORDER BY `recycling_offices`.`id`");
 			while($office = $DB->fetch_assoc($officesLists)){
-				$_SESSION['myOfficesList'][$office['id']] = $office['office'];
+				$_SESSION['myOfficesList'][$office['id']] = $office['officeName'];
 			}		
 		}
 	}

@@ -41,6 +41,7 @@
 		'statusId',
 		'companyId',
 		'companyRefId',
+		'companyType',
 		'printerId',
 		'checkId',
 		'breakId',
@@ -62,7 +63,10 @@
 		'checkName',
 		'ip',
 		'sn',
-		'adminName'
+		'adminName',
+		'company',
+		'officeName',
+		'inn'
 		);
 		foreach($textVariables as $textVariable) if(isset($_POST[$textVariable])) $$textVariable = mb_substr($_POST[$textVariable], 0, 50);
 	
@@ -108,8 +112,38 @@
 					$DB->query("UPDATE `recycling_admins` SET `datelogin`=NOW(), `lastip`=INET_ATON('$_SERVER[REMOTE_ADDR]') WHERE `id`='$adminsAuthId'");
 				}
 			}
-		} elseif (isset($_POST['cmdAddOffice'])){
-			addNewOffice($_POST['newOfficeName']);
+		} elseif (isset($_POST['cmdDeleteСompany']) && $_SESSION['superAdm'] == 1){		
+			if($DB->num_rows("SELECT * FROM `recycling_checks` WHERE `companyId`='$companyId' OR `companyRefId`='$companyId'") > 0){ print "Нельзя удалить компанию, в базе у неё есть счета"; exit; }
+			if($DB->num_rows("SELECT * FROM `recycling_printers` WHERE `companyId`='$companyId'") > 0){ print "Нельзя удалить компанию, в базе у неё есть принтеры"; exit; }		
+/*
+			if($DB->num_rows("SELECT * FROM `recycling_cartridges` WHERE `companyId`='$companyId'") > 0){ print "Нельзя удалить компанию, в базе у неё есть картриджи"; exit; }
+*/
+			$DB->query("DELETE FROM `recycling_companies` WHERE `id`='$companyId'");
+			header("Location: ?w=options");				
+			exit;			
+		} elseif (isset($_POST['cmdSaveOfficeParams']) && $_SESSION['superAdm'] == 1){
+			if(mb_strlen($officeName) < 3){ print "Слишком короткое название офиса"; exit; }
+			if($officeId == 0){
+				$officeId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_offices`");			
+				$DB->query("INSERT INTO `recycling_offices`(`id`) VALUES ('$officeId')");
+			}
+			$DB->query("UPDATE `recycling_offices` SET `officeName`='".$DB->escape($officeName)."' WHERE `id`='$officeId'");
+			$adminsInOffice = isset($_POST['adminsInOffice']) ? $_POST['adminsInOffice'] : array();
+			$DB->query("DELETE FROM `recycling_admins_offices` WHERE `office_id`='$officeId'");
+			if(count($adminsInOffice) > 0 ) $DB->query("INSERT INTO `recycling_admins_offices`(`office_id`,`admin_id`) VALUES ('$officeId','".implode("'),('$officeId','", $adminsInOffice)."')");
+			header("Location: ?w=options#office_".$officeId);				
+			exit;		
+		} elseif (isset($_POST['cmdSaveCompanyParams']) && $_SESSION['superAdm'] == 1){			
+			if(mb_strlen($company) < 2){ print "Слишком короткое название компании $company"; exit; }			
+			if($companyType == 0){ print "Нужно указать тип компании, является ли она организацией на обслуживании или сервисным центром"; exit; }
+			if($companyType == 1 && $officeId == 0){ print "Нужно указать офис, где находится компания"; exit; }
+			if($companyId == 0){
+				$companyId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_companies`");
+				$DB->query("INSERT INTO `recycling_companies`(`id`) VALUES('$companyId')");				
+			}
+			$DB->query("UPDATE `recycling_companies` SET `company`='".$DB->escape($company)."', `inn`=".$DB->null_val($inn).", ".(($companyType == 1) ? "`officeId`='$officeId'" : "`officeId`=NULL").", `companyType`='$companyType' WHERE `id`='$companyId'");				
+			header("Location: ?w=options#company_".$companyId);				
+			exit;			
 		} elseif (isset($_POST['cmdEditCartridgeModel']) && $_SESSION['superAdm'] == 1){
 			if(mb_strlen($cartridgeName) <= 2){ print "Слишком короткое название модели"; exit; }		
 			if(!array_key_exists($cartridgeColor, $portalCartridgeColors) || $cartridgeColor == 0){ print "Неверный цвет"; exit; }
@@ -129,8 +163,8 @@
 			}
 			exit;
 		} elseif (isset($_POST['cmdEditPrinterModel']) && $_SESSION['superAdm'] == 1){
-			if(mb_strlen($modelName < 2)){ print "Слишком короткое название модели"; exit; }
-			if( $deviceType == 0 || $hasNetwork == 0 || $hasColor == 0){ print "Должны быть указаны значения тип модели, цветность"; exit; }			
+			if(mb_strlen($modelName) < 2){ print "Слишком короткое название модели"; exit; }
+			if($deviceType == 0 || $hasNetwork == 0 || $hasColor == 0){ print "Должны быть указаны значения тип модели, цветность"; exit; }			
 			if($DB->num_rows("SELECT * FROM `recycling_printers_models` WHERE `modelName`='".$DB->escape($modelName)."'") > 0){ print "Такая модель уже есть"; exit; }
 			if($printerModelId == 0){
 				$printerModelId = $DB->result("SELECT IFNULL(MAX(id) + 1, 1) FROM `recycling_printers_models`");
