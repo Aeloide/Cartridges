@@ -51,13 +51,18 @@
 		return md5(md5(md5($password).$salt).$salt);
 	}
 	
-	function show_select($selected, $array, $selectname, $zeropoint = false){
+	function show_select($selected, $array, $inputOptions = array(), $zeropoint = true){
 		if(!is_array($array)) return;
-		if($zeropoint == true) $array = array(0 => '-- выберите --') + $array;		
-		$return = '<select name="'.$selectname.'" id="'.$selectname.'">';
-		foreach($array as $key => $value) $return .= '<option value="'.$key.'"'.(($selected == $key) ? ' selected="selected"' : '').'>'.strip_tags($value).'</option>';
-		return $return."</select>";
-	}
+		$optionsTxt = $returnArray = array();
+		if($zeropoint == true) $array = array(0 => '-- выберите --') + $array;
+		if(!is_array($inputOptions)){ $optionsArray['name'] = $inputOptions; }else{ $optionsArray = $inputOptions; }
+		foreach($optionsArray as $option => $value){
+			if($option == 'disabled'){ $optionsTxt[] = (($value == 1 || $value == true) ? "disabled" : ''); continue; }
+			$optionsTxt[] = " $option=\"$value\"";
+		}
+		foreach($array as $key => $value) $returnArray[] = '<option value="'.$key.'"'.(($selected == $key) ? ' selected="selected"' : '').'>'.strip_tags($value).'</option>';
+		return "<select".implode('', $optionsTxt).">".implode("", $returnArray)."</select>";
+	}	
 	
 	function ca_check_path($num){
 		$num = sprintf("%06d", (int)$num);

@@ -4,13 +4,7 @@
 		global $DB, $portalCompanyTypes;
 		$officeParams = array('officeName' => '');
 		if($officeId > 0) $officeParams = $DB->fetch_assoc("SELECT * FROM `recycling_offices` WHERE `id`='$officeId'");
-		
-		$checksQuery = $DB->query("SELECT  `a`.`admin_id` AS `mark`, `recycling_admins`.`id`, `recycling_admins`.`adminName` FROM `recycling_admins`
-
-LEFT JOIN (SELECT admin_id FROM `recycling_admins_offices` WHERE `recycling_admins_offices`.`office_id`='$officeId') AS a
-
-ON `a`.`admin_id`=`recycling_admins`.`id` ORDER BY adminName");
-
+		$checksQuery = $DB->query("SELECT  `a`.`admin_id` AS `mark`, `recycling_admins`.`id`, `recycling_admins`.`adminName` FROM `recycling_admins`LEFT JOIN (SELECT admin_id FROM `recycling_admins_offices` WHERE `recycling_admins_offices`.`office_id`='$officeId') AS a ON `a`.`admin_id`=`recycling_admins`.`id` ORDER BY adminName");
 		$checkBoxTxt = '';
 		if($DB->num_rows($checksQuery) > 0){
 			while($officeCheckbox = $DB->fetch_assoc($checksQuery)) $checkBoxTxt .= '<input type="checkbox" name="adminsInOffice[]" value="'.$officeCheckbox['id'].'"'.(($officeCheckbox['mark'] > 0) ? ' checked' : '').'>'.$officeCheckbox['adminName'].'</br>';
@@ -53,8 +47,8 @@ ON `a`.`admin_id`=`recycling_admins`.`id` ORDER BY adminName");
 			<tbody>
 				<tr><td>Название</td><td><input type="text" name="company" value="'.htmlspecialchars($companyParams['company']).'"></td></tr>
 				<tr><td>ИНН</td><td><input type="text" name="inn" value="'.$companyParams['inn'].'"></td></tr>
-				<tr><td>Тип</td><td>'.show_select($companyParams['companyType'], $portalCompanyTypes, 'companyType', true).'</td></tr>					
-				<tr><td>Офис</td><td>'.show_select($companyParams['officeId'], $officeListArray, 'officeId', true).'</td></tr>
+				<tr><td>Тип</td><td>'.show_select($companyParams['companyType'], $portalCompanyTypes, 'companyType').'</td></tr>					
+				<tr><td>Офис</td><td>'.show_select($companyParams['officeId'], $officeListArray, 'officeId').'</td></tr>
 				<tr><td colspan="2"><input type="submit" name="cmdSaveCompanyParams" value="Сохранить">'.(($companyId > 0) ? ' <input type="submit" name="cmdDeleteСompany" value="Удалить">' : '').'</td></tr>					
 			</tbody>
 		</table>
@@ -85,13 +79,13 @@ ON `a`.`admin_id`=`recycling_admins`.`id` ORDER BY adminName");
 		<table>
 			<caption>'.(($printerId == 0) ? 'Добавить новый принтер' : 'Изменить параметры').':</caption>
 			<tbody>
-				<tr><td>Офис</td><td>'.show_select($printerParams['officeId'], $_SESSION['myOfficesList'], 'officeId', true).'</td></tr>
-				<tr><td>Модель</td><td>'.show_select($printerParams['modelId'], $allowModelsArray, 'modelId', true).'</td></tr>
-				<tr><td>Владелец</td><td>'.show_select($printerParams['companyId'], $allowCompanyArray, 'companyId', true).'</td></tr>					
+				<tr><td>Офис</td><td>'.show_select($printerParams['officeId'], $_SESSION['myOfficesList'], 'officeId').'</td></tr>
+				<tr><td>Модель</td><td>'.show_select($printerParams['modelId'], $allowModelsArray, 'modelId').'</td></tr>
+				<tr><td>Владелец</td><td>'.show_select($printerParams['companyId'], $allowCompanyArray, 'companyId').'</td></tr>					
 				<tr><td>Название в AD</td><td><input type="text" name="printerName" value="'.$printerParams['printerName'].'"></td></tr>
 				<tr><td>IP</td><td><input type="text" name="ip" value="'.$printerParams['ip'].'"></td></tr>
 				<tr><td>SN</td><td><input type="text" name="sn" value="'.$printerParams['sn'].'"></td></tr>
-				<tr><td>Статус</td><td>'.show_select($printerParams['statusId'], $printerStatusArray, 'statusId', true).'</td></tr>
+				<tr><td>Статус</td><td>'.show_select($printerParams['statusId'], $printerStatusArray, 'statusId').'</td></tr>
 				<tr><td colspan="2"><input type="submit" name="cmdSavePrinterParams" value="Сохранить"></td></tr>					
 			</tbody>
 		</table>
@@ -126,10 +120,10 @@ ON `a`.`admin_id`=`recycling_admins`.`id` ORDER BY adminName");
 				<tr><td>Дата счёта</td><td><input type="date" name="checkDate" value="'.$checkParams['checkDate'].'"></td></tr>
 				'.(($_SESSION['superAdm'] > 0) ? '<tr><td>Дата добавления</td><td><input type="date" name="checkDateAdded" value="'.(($checkParams['checkDateAdded'] == '') ? date("Y-m-d") : $checkParams['checkDateAdded']).'"></td></tr>' : '').'
 				<tr><td>Сумма счёта</td><td><input type="text" name="checkSumm" value="'.$checkParams['checkSumm'].'"></td></tr>
-				<tr><td>Разбивка</td><td>'.show_select($checkParams['breakId'], $breaksArray, 'breakId', true).'</td></tr>
-				<tr><td>Кому выставлен</td><td>'.show_select($checkParams['companyId'], $companysArray, 'companyId', true).'</td></tr>
-				<tr><td>Кем выставлен</td><td>'.show_select($checkParams['companyRefId'], $companysRefArray, 'companyRefId', true).'</td></tr>				
-				<tr><td>Оплачен</td><td>'.show_select($checkParams['isPay'], $portalYesNo, 'isPay', true).'</td></tr>				
+				<tr><td>Разбивка</td><td>'.show_select($checkParams['breakId'], $breaksArray, 'breakId').'</td></tr>
+				<tr><td>Кому выставлен</td><td>'.show_select($checkParams['companyId'], $companysArray, 'companyId').'</td></tr>
+				<tr><td>Кем выставлен</td><td>'.show_select($checkParams['companyRefId'], $companysRefArray, 'companyRefId').'</td></tr>				
+				<tr><td>Оплачен</td><td>'.show_select($checkParams['isPay'], $portalYesNo, 'isPay').'</td></tr>				
 				<tr><td>Файл</td><td><input name="userfile" type="file" /></td></tr>
 				<tr><td colspan="2"><input type="submit" name="cmdEditCheck" value="сохранить"></td></tr>
 			</tbody>

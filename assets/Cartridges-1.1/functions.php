@@ -119,12 +119,14 @@ ORDER BY `recycling_events`.`dt` DESC");
 			</form>
 			'; 
 		}else{
+			$adminsListArray = array();
 			$adminsList = $DB->query("SELECT * FROM `recycling_admins` ORDER BY id");
 			if($DB->num_rows($adminsList) == 0){				
 				$salt = md5(time());
 				$DB->query("INSERT INTO `recycling_admins`(`adminName`,`pass`,`salt`,`datereg`,`superAdm`) VALUES ('admin','".passHash('admin', $salt)."','$salt',NOW(),'1')");
 				$adminsList = $DB->query("SELECT * FROM `recycling_admins` ORDER BY id");				
 			}
+			while($admin = $DB->fetch_assoc($adminsList)) $adminsListArray[$admin['id']] = $admin['adminName'];	
 			
 			$return .= '
 				<form name="form1" method="post" action="'.$_SERVER['PHP_SELF'].'">
@@ -136,18 +138,8 @@ ORDER BY `recycling_events`.`dt` DESC");
 						</tr>
 					</thead>
 					<tbody>
-						<tr>
-							<td>
-								<select name="adminsAuthId"><option value="0" selected>-- выберите --</option>';
-								while($admin = $DB->fetch_assoc($adminsList)) $return .= "<option value=\"$admin[id]\">$admin[adminName]</option>";			
-								$return .= '
-								</select>
-							</td>
-							<td><input type="password" name="adminsAuthPass"></td>
-						</tr>
-						<tr>
-							<td colspan="2" align="center"><input type="submit" name="cmdAuthAdmin" value="авторизация"></td>
-						</tr>
+						<tr><td>'.show_select(0, $adminsListArray, 'adminsAuthId').'</td><td><input type="password" name="adminsAuthPass"></td></tr>
+						<tr><td colspan="2" align="center"><input type="submit" name="cmdAuthAdmin" value="авторизация"></td></tr>
 					</tbody>
 				</table>
 				</form>
@@ -247,9 +239,7 @@ ORDER BY `id`");
 			}							
 			
 			$return .= '
-				<tr data-id="new" data-target="getOfficeEditElement">
-					<td colspan="6" style="text-align:right;">[<a href="javascript://" class="add-row">Добавить офис</a>]</td>
-				</tr>
+				<tr data-id="new" data-target="getOfficeEditElement"><td colspan="6" style="text-align:right;">[<a href="javascript://" class="add-row">Добавить офис</a>]</td></tr>
 				</tbody>
 			</table>			
 			</fieldset>			
@@ -291,9 +281,7 @@ ORDER BY `recycling_companies`.`companyType`, `recycling_companies`.`officeId`, 
 			}
 			
 			$return .= '
-				<tr data-id="new" data-target="getCompanyEditElement">
-					<td colspan="5" style="text-align:right;">[<a href="javascript://" class="add-row">Добавить компанию</a>]</td>
-				</tr>				
+				<tr data-id="new" data-target="getCompanyEditElement"><td colspan="5" style="text-align:right;">[<a href="javascript://" class="add-row">Добавить компанию</a>]</td></tr>				
 				</tbody>
 			</table>
 			</fieldset>';			
@@ -594,7 +582,7 @@ AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content`
 			if(count($checkVariantsArray) == 0){
 				$return .= '<b>Нет доступных счетов.</b><br>Чтобы привязать конкретные события к счетам, нужно вначале добавить, а затем привязать какой-либо счёт к этой разбивке на <a href="?w=payments">странице Счета</a>.';
 			}else{
-				$return .= 'Связать отмеченное со счетом:<br />'.show_select(0, $checkVariantsArray, 'checkId', true).'<input type="submit" name="cmdAddEventsIntoCheck" value="сохранить"></fieldset>';
+				$return .= 'Связать отмеченное со счетом:<br />'.show_select(0, $checkVariantsArray, 'checkId').'<input type="submit" name="cmdAddEventsIntoCheck" value="сохранить"></fieldset>';
 			}
 			$return .= '</form>';
 			
@@ -607,7 +595,7 @@ AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content`
 						<tbody>
 						<tr><td>Название</td><td><input type="text" name="breakName" placeholder="Заправка [номер]"></td></tr>						
 						<tr><td>Дата</td><td><input type="date" name="breakDate" value="'.date("Y-m-d").'"></td></tr>						
-						<tr><td>Офис</td><td>'.show_select(0, $_SESSION['myOfficesList'], 'officeId', true).'</td></tr>
+						<tr><td>Офис</td><td>'.show_select(0, $_SESSION['myOfficesList'], 'officeId').'</td></tr>
 						<tr><td colspan="2"><input type="submit" name="cmdAddEventsIntoBreak" value="сохранить"></td></tr>
 						</tbody>
 					</table>
@@ -675,18 +663,16 @@ LEFT JOIN `recycling_brands` ON `recycling_brands`.`id`=`recycling_cartridges`.`
 WHERE `recycling_cartridges`.`office_id` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."')
 ORDER BY `recycling_cartridges`.`office_id`, status_id, id");
 
+		$allowOfficesArray = array();
 		$allowOffices = $DB->query("SELECT `recycling_offices`.* FROM `recycling_offices` LEFT JOIN `recycling_admins_offices` ON `recycling_offices`.`id`=`recycling_admins_offices`.`office_id` WHERE `recycling_admins_offices`.`admin_id`='$_SESSION[adminId]'");
+		while($allowOffice = $DB->fetch_assoc($allowOffices)) $allowOfficesArray[$allowOffice['id']] = $allowOffice['officeName'];
 
 		$return = '<form name="formRegCartridge" method="post" action="'.$_SERVER['PHP_SELF'].'">	
 		<fieldset class="editFormFieldset">
 		<table>
 			<caption>Регистрация нового картриджа:</caption>
 			<tbody>		
-				<tr>
-					<td>новый картридж в офис:</td>
-					<td><select name="officeRegcartridgeId" onChange="formRegCartridge.submit();"><option value="0" selected>-- выберите --</option>';
-						while($allowOffice = $DB->fetch_assoc($allowOffices)) $return .= "<option value='$allowOffice[id]'".(($allowOffice['id'] == $_SESSION['officeRegcartridgeId']) ? ' selected' : '') . ">$allowOffice[officeName]</option>";
-		$return .= '</select></td></tr>';	
+				<tr><td>новый картридж в офис:</td><td>'.show_select($_SESSION['officeRegcartridgeId'], $allowOfficesArray, ['name' => 'officeRegcartridgeId', 'onChange' => 'formRegCartridge.submit();']).'</td></tr>';	
 
 		if((int)$_SESSION['officeRegcartridgeId'] > 0){
 			
@@ -696,8 +682,8 @@ ORDER BY `recycling_cartridges`.`office_id`, status_id, id");
 			$allowBrands = $DB->query("SELECT * FROM `recycling_brands` ORDER BY brandName");
 			while($allowBrand = $DB->fetch_assoc($allowBrands)) $allowBrandArray[$allowBrand['id']] = $allowBrand['brandName'];
 			
-			$return .= '<tr><td>модель:</td><td>'.show_select(0, $allowCartridgeArray, 'cartridgeModelId', true).'</td></tr>
-				<tr><td>производитель:</td><td>'.show_select(0, $allowBrandArray, 'brandId', true).'</td></tr>			
+			$return .= '<tr><td>модель:</td><td>'.show_select(0, $allowCartridgeArray, 'cartridgeModelId').'</td></tr>
+				<tr><td>производитель:</td><td>'.show_select(0, $allowBrandArray, 'brandId').'</td></tr>			
 				<tr><td>инв.№ (0 - автогенерация номера):</td><td><input type="text" name="cartridgeInvNum" value="0" size="5"></td></tr>
 				<tr><td>причина:</td><td><input type="radio" name="reason_new_id" value="3">покупка нового <input type="radio" name="reason_new_id" value="4" checked>покупка б/у </td></tr>				
 				<tr><td colspan="2"><input type="submit" name="cmdAddCartridge" value="добавить новый картридж"></td></tr>			
@@ -737,18 +723,15 @@ ORDER BY `recycling_cartridges`.`office_id`, status_id, id");
 		return $return;			
 	}
 	
-	
 	function show_cartridge_replace_form($printerId = 0){
 		global $DB;
 
 		$allowPrinters = $DB->query("SELECT * FROM `recycling_printers` WHERE `officeId` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."') AND `statusId` IN (2,5) ORDER BY printerName");
+		$allowPrinterArray = array();
+		while($allowPrinter = $DB->fetch_assoc($allowPrinters)) $allowPrinterArray[$allowPrinter['id']] = $allowPrinter['printerName'];
 
+		
 		$selectPrinter = ($printerId > 0) ? $printerId : (($_SESSION['printerRCId'] > 0) ? $_SESSION['printerRCId'] : 0);
-/*		
-		if($DB->result("SELECT `model_id` FROM `recycling_printers` WHERE `id`='$selectPrinter'") == 0){
-			return;			
-		}
-*/
 		
 		$return = '
 		<form name="formChangeCartridge" method="post" action="'.$_SERVER['PHP_SELF'].'">
@@ -756,15 +739,14 @@ ORDER BY `recycling_cartridges`.`office_id`, status_id, id");
 		<table>
 			<caption>Замена картриджа:</caption>	
 			<tbody>
-			<tr><td>Принтер:</td>
-			<td><select name="printerRCId" onChange="formChangeCartridge.submit();" '.(($printerId > 0) ? 'disabled' : '').'><option value="0">--- выберите ---</option>';
-			while($allowPrinter = $DB->fetch_assoc($allowPrinters)) $return .= "<option value='$allowPrinter[id]'".(($allowPrinter['id'] == $selectPrinter) ? ' selected' : '') . ">$allowPrinter[printerName]</option>";
-			$return .= '					
-			</select>
-			</td>
+			<tr><td>Принтер:</td><td>'.show_select($selectPrinter, $allowPrinterArray, ['name' => 'printerRCId', 'onChange' => 'formChangeCartridge.submit();', 'disabled' => (($printerId > 0) ? true : false)]).'</td>
 		</tr>';
 		
 		if($selectPrinter > 0){
+			
+			$hasColor = $DB->result("SELECT hasColor FROM `recycling_printers`
+LEFT JOIN `recycling_printers_models` ON `recycling_printers_models`.`id`=`recycling_printers`.`modelId`
+ WHERE `recycling_printers`.`id`='$selectPrinter'");		
 		
 			$cartridgeInside = $DB->fetch_assoc("SELECT 
 `recycling_printers`.`cartridge_inside`,
@@ -775,6 +757,7 @@ LEFT JOIN `recycling_cartridges` ON `recycling_printers`.`cartridge_inside`=`rec
 LEFT JOIN `recycling_cartridges_models` ON `recycling_cartridges`.`cartridge_model_id`=`recycling_cartridges_models`.`id`
 WHERE `recycling_printers`.`id`='$selectPrinter'");
 
+			$allowCartridgesArray = array();
 			$allowCartridges = $DB->query("SELECT
 `recycling_cartridges`.`id`,
 `recycling_cartridges`.`inv_num`,
@@ -787,14 +770,13 @@ AND `status_id`='2'
 AND cartridge_model_id IN (SELECT `cartridgeModelId` FROM `recycling_printers_cartridges`
 	WHERE `recycling_printers_cartridges`.`printerModelId`=(SELECT `modelId` FROM `recycling_printers` WHERE `recycling_printers`.`id`='$selectPrinter')
 ) ORDER BY cartridgeName DESC");
-
+			while($cartridgeVariant = $DB->fetch_assoc($allowCartridges)) $allowCartridgesArray[$cartridgeVariant['id']] = "$cartridgeVariant[inv_num] ($cartridgeVariant[cartridgeName])";
+			
 			$lastPagesCnt = $DB->result("SELECT `pages` FROM `recycling_events` WHERE `cartridge_in_id`='$cartridgeInside[cartridge_inside]' AND `printer_id`='$selectPrinter' ORDER BY id DESC LIMIT 1");
 		
 			$return .= '
 			<tr><td>Картридж в принтере:</td><td><input type="hidden" name="cartridge_out_id" value="'.$cartridgeInside['cartridge_inside'].'"><input type="text" value="'.(($cartridgeInside['inv_num'] > 0) ? $cartridgeInside['inv_num'].' ('.$cartridgeInside['cartridgeName'].')' : '(пусто)').'" disabled></td></tr>	
-			<tr><td>Картридж для замены:</td><td><select name="cartridge_in_id"><option value="0" selected>-- выберите --</option>';
-			while($cartridgeVariant = $DB->fetch_assoc($allowCartridges)) $return .= "<option value=\"$cartridgeVariant[id]\">$cartridgeVariant[inv_num] ($cartridgeVariant[cartridgeName])</option>";			
-			$return .= '</select></td></tr>			
+			<tr><td>Картридж для замены:</td><td>'.show_select(0, $allowCartridgesArray, 'cartridge_in_id').'</td></tr>			
 			<tr><td>Причина:</td><td><input type="radio" name="reason_id" id="one" value="1" checked>закончился тонер<input type="radio" name="reason_id" id="two" value="2">рекламация</td></tr>
 			'.(($lastPagesCnt > 0) ? '<tr><td>Счётчик страниц:</td><td><input type="text" size="10" maxlength="10" value="'.$lastPagesCnt.' (предыдущее значение)" disabled></td></tr>' : '').'
 			<tr><td>Счётчик страниц:</td><td><input type="text" name="pages" size="10" maxlength="10" placeholder="текущее значение"></td></tr>
