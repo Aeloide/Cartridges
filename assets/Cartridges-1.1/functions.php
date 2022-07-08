@@ -14,12 +14,16 @@ UNIX_TIMESTAMP(`recycling_checks`.`checkDate`) AS `checkDateU`,
 `recycling_checks`.`isPay`,
 `recycling_counteragents`.`company`,
 `recycling_cartridges_worknames`.`workName`,
-`recycling_breaks_content`.`checkId`
+`recycling_breaks_content`.`checkId`,
+`recycling_breaks_content`.`breakId`,
+`recycling_breaks`.`breakName`,
+`recycling_breaks`.`breakDate`
 FROM `recycling_cartridges_works`
 LEFT JOIN `recycling_events` ON `recycling_events`.`id`=`recycling_cartridges_works`.`eventId`
 LEFT JOIN `recycling_cartridges` ON `recycling_cartridges`.`id`=`recycling_events`.`cartridge_out_id`
 LEFT JOIN `recycling_cartridges_models` ON `recycling_cartridges_models`.`id`=`recycling_cartridges`.`cartridge_model_id`
 LEFT JOIN `recycling_breaks_content` ON `recycling_breaks_content`.`eventId`=`recycling_events`.`id`
+LEFT JOIN `recycling_breaks` ON `recycling_breaks`.`id`=`recycling_breaks_content`.`breakId`
 LEFT JOIN `recycling_checks` ON `recycling_checks`.`id`=`recycling_breaks_content`.`checkId`
 LEFT JOIN `recycling_cartridges_worknames` ON `recycling_cartridges_worknames`.`id`=`recycling_cartridges_works`.`workId`
 LEFT JOIN (SELECT * FROM `recycling_companies` WHERE `companyType`='2') AS `recycling_counteragents` ON `recycling_counteragents`.`id`=`recycling_checks`.`companyRefId`
@@ -33,6 +37,7 @@ ORDER BY `recycling_checks`.`checkDateAdded` DESC");
 						<tr>
 							<th>Картридж</th>
 							<th>Работы</th>
+							<th>Разбивка</th>							
 							<th>Счёт</th>
 							<th>От компании</th>
 							<th>Оплачен</th>							
@@ -47,6 +52,7 @@ ORDER BY `recycling_checks`.`checkDateAdded` DESC");
 					<tr>
 						<td><b>$cartridgeEvent[inv_num]</b> ($cartridgeEvent[cartridgeName])</td>
 						<td>$cartridgeEvent[grpTxt]</td>
+						<td><a href=\"?w=breaks&id=$cartridgeEvent[breakId]\">$cartridgeEvent[breakName] от ".$intlFormatter->format($cartridgeEvent['breakDate'])."</a></td>						
 						<td><a href=\"?getCheck=$cartridgeEvent[checkId]\">$cartridgeEvent[checkName] от ".$intlFormatter->format($cartridgeEvent['checkDateU'])."</a></td>
 						<td>$cartridgeEvent[company]</td>									
 						<td>".$portalYesNo[$cartridgeEvent['isPay']]."</td>							
@@ -480,7 +486,6 @@ SELECT
 `recycling_companies`.`company`,
 `recycling_companies`.`inn`,
 `recycling_printers`.`printerName`,
-`recycling_printers`.`companyId`,
 `recycling_events_reasons`.`reason`,
 `recycling_events`.`dt`,
 `recycling_events`.`id` AS `eventId`,
@@ -489,26 +494,24 @@ SELECT
 `recycling_breaks_content`.`breakId`,
 `recycling_breaks_content`.`checkId`,
 `recycling_breaks_content`.`worksCount`,
+`recycling_breaks_content`.`companyId`,
 `recycling_checks`.`checkName`,
 UNIX_TIMESTAMP(`recycling_checks`.`checkDate`) AS `checkDateU`,
 `recycling_checks`.`isPay`
  FROM `recycling_events`
 LEFT JOIN `recycling_cartridges` ON `recycling_events`.`cartridge_out_id`=`recycling_cartridges`.`id`
 LEFT JOIN `recycling_printers` ON `recycling_events`.`printer_id`=`recycling_printers`.`id`
-LEFT JOIN `recycling_companies` ON `recycling_companies`.`id`=`recycling_printers`.`companyId`
 LEFT JOIN `recycling_events_reasons` ON `recycling_events`.`reason_id`=`recycling_events_reasons`.`id`
 LEFT JOIN `recycling_cartridges_models` ON `recycling_cartridges_models`.`id`=`recycling_cartridges`.`cartridge_model_id`
 LEFT JOIN `recycling_cartridges_stasuses` ON `recycling_cartridges`.`status_id`=`recycling_cartridges_stasuses`.`id`
 LEFT JOIN (SELECT dt, remark, event_id FROM `recycling_events_admins` WHERE `event_typ_id`='1') AS a ON a.event_id=`recycling_events`.id
 LEFT JOIN `recycling_breaks_content` ON `recycling_breaks_content`.`eventId`=`recycling_events`.`id`
+LEFT JOIN `recycling_companies` ON `recycling_companies`.`id`=`recycling_breaks_content`.`companyId`
 LEFT JOIN `recycling_checks` ON `recycling_checks`.`id`=`recycling_breaks_content`.`checkId`
-WHERE
-".(($id > 0) ? "
-`recycling_breaks_content`.`breakId`='$id'" : "
-`recycling_events`.`office_id` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."')
+WHERE ".(($id > 0) ? "`recycling_breaks_content`.`breakId`='$id'" : "`recycling_events`.`office_id` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."')
 AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content` WHERE `breakId` IS NULL)")."
- ORDER BY `recycling_printers`.`companyId`, `dt` DESC");
-//AND `recycling_cartridges`.`status_id` IN ('1','0')
+ ORDER BY `recycling_breaks_content`.`companyId`, `dt` DESC");
+
 
 		$return = '<form method="post" action="'.$_SERVER['PHP_SELF'].'">
 		<fieldset><legend>События для разбивки:</legend>

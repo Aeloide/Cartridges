@@ -95,13 +95,14 @@
 
 	function show_check_edit_element($checkId = 0){
 		global $DB, $intlFormatter, $portalYesNo;		
-
+		$intlFormatter->setPattern('d MMMM YYYYг.');
+	
 		$checkParams = array('checkName' => '', 'checkSumm' => '', 'breakId' => 0, 'companyId' => 0, 'companyRefId' => 0, 'isPay' => 0, 'checkDate' => '', 'checkDateAdded' => '');
 		if($checkId > 0) $checkParams = $DB->fetch_assoc("SELECT * FROM `recycling_checks` WHERE `id`='$checkId'");
 		$breaksArray = $companysRefArray = $companysArray = array();
 		
 		$breakList = $DB->query("SELECT `recycling_breaks`.*, `officeName` FROM `recycling_breaks` LEFT JOIN `recycling_offices` ON `recycling_offices`.`id`=`recycling_breaks`.`officeId` WHERE officeId IN (SELECT `office_id` FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]') ORDER BY `breakDate` DESC LIMIT 30");
-		while($break = $DB->fetch_assoc($breakList)) $breaksArray[$break['id']] = $break['breakName'].', создана '.$intlFormatter->format($break['breakDate']).', офис '.$break['officeName'];
+		while($break = $DB->fetch_assoc($breakList)) $breaksArray[$break['id']] = $break['breakName'].', создано '.$intlFormatter->format($break['breakDate']).', офис '.$break['officeName'];
 		
 		$companyList = $DB->query("SELECT `recycling_companies`.*, `officeName` FROM `recycling_companies` LEFT JOIN `recycling_offices` ON `recycling_offices`.`id`=`recycling_companies`.`officeId` WHERE officeId IN (SELECT office_id FROM `recycling_admins_offices` WHERE `admin_id`='$_SESSION[adminId]') ORDER BY officeId, company");
 		while($company = $DB->fetch_assoc($companyList)) $companysArray[$company['id']] = $company['company'].((isset($company['inn'])) ? ' ('.$company['inn'].')' : '').', офис '.$company['officeName'];

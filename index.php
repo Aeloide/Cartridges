@@ -79,7 +79,10 @@
 			$DB->query("UPDATE recycling_cartridges SET `status_id`='0' WHERE `id`='$cartridge_out_id'");
 			$DB->query("UPDATE recycling_cartridges SET `status_id`='4' WHERE `id`='$cartridge_in_id'");
 			$DB->query("UPDATE recycling_printers SET `cartridge_inside`='$cartridge_in_id' WHERE `id`='$_SESSION[printerRCId]'");
-			if($cartridge_out_id > 0) $DB->query("INSERT INTO `recycling_breaks_content`(`eventId`) VALUES ('$event_id')");			
+			if($cartridge_out_id > 0){
+				$companyId = $DB->result("SELECT companyId FROM `recycling_printers` WHERE `id`='$_SESSION[printerRCId]'");
+				$DB->query("INSERT INTO `recycling_breaks_content`(`eventId`,`companyId`) VALUES ('$event_id','$companyId')");
+			}
 		} elseif (isset($_POST['cmdAddCartridge'])){
 			// Добавление картриджа
 			if($cartridgeInvNum == 0) $cartridgeInvNum = $DB->result("SELECT IFNULL(MAX(inv_num) + 1, 1) FROM recycling_cartridges WHERE `office_id`='$_SESSION[officeRegcartridgeId]'");
