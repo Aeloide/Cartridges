@@ -5,6 +5,7 @@
 		'journal' => array('title' => 'Журнал', 'head' => 'Журнал движения картриджей'),
 		'printers' => array('title' => 'Принтеры', 'head' => 'Список принтеров'),
 		'cartridges' => array('title' => 'Картриджи', 'head' => 'Список картриджей'),
+		'computers' => array('title' => 'Компьютеры', 'head' => 'Список компьютеров'),		
 		'breaks' => array('title' => 'Разбивки', 'head' => 'Разбивка счетов по компаниям'),
 		'payments' => array('title' => 'Счета', 'head' => 'Выставленные счета на оплату'),
 		'options' => array('title' => 'Опции', 'head' => 'Настройки и опции отображения')

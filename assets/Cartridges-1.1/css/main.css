@@ -25,6 +25,17 @@ body {
 	text-align: left;	
 }
 
+.os-warn {
+	background-color: #ffc6c6
+}
+
+.os-normal {
+background-color: #f4efc6;	
+}
+
+.os-good {
+	background-color: #c1f2c9;		
+}
 
 a:hover, a:focus {
 	color: red;

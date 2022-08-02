@@ -1,5 +1,79 @@
 <?php
 
+
+	function portalShow_GET_computers(){
+		global $DB;
+		
+$computersList = $DB->query("SELECT
+`recycling_computers`.`id`,
+`recycling_computers`.`pcIP`,
+`recycling_computers`.`pcHostName`,
+`recycling_computers`.`pcUser`,
+`recycling_computers`.`pcInvNum`,
+`recycling_computers`.`pcCompany`,
+`recycling_companies`.`company`,
+`recycling_os`.`osName`,
+`recycling_os`.`osCSSClass`,
+`recycling_programs`.`programName`
+FROM 
+`recycling_computers`
+LEFT JOIN `recycling_companies` ON `recycling_companies`.`id`=`recycling_computers`.`pcCompany`
+LEFT JOIN `recycling_os` ON `recycling_os`.`id`=`recycling_computers`.`pcOS`
+LEFT JOIN `recycling_programs` ON `recycling_programs`.`id`=`recycling_computers`.`pcAV`
+ORDER BY `recycling_computers`.`pcCompany`,`recycling_computers`.`pcOS`,`recycling_computers`.`pcAV`");
+
+		$return = '<fieldset><legend>Список компьютеров:</legend>
+				<table class="mainTable zebra">
+					<thead>
+						<tr>
+							<th>№</th>
+							<th>Hostname</th>
+							<th>IP</th>							
+							<th>OS</th>
+							<th>AV</th>
+							<th>Инв.</th>							
+							<th>Владелец</th>
+							<th>Пользователь</th>							
+						</tr>
+					</thead>
+					<tbody>
+		';
+
+		if($DB->num_rows($computersList) > 0){
+			$statusCompanies = array();
+			while($computer = $DB->fetch_assoc($computersList)){
+				if(!isset($statusCompanies[$computer['company']])) $statusCompanies[$computer['company']] = 0;
+				$statusCompanies[$computer['company']] ++;
+				
+				//background-color: #ffc6c6;
+				$return .= "
+					<tr>
+						<td>$computer[id]</td>
+						<td>$computer[pcHostName]</td>
+						<td>$computer[pcIP]</td>						
+						<td class=\"$computer[osCSSClass]\">$computer[osName]</td>
+						<td>$computer[programName]</td>						
+						<td>$computer[pcInvNum]</td>						
+						<td>$computer[company]</td>					
+						<td>$computer[pcUser]</td>
+					</tr>";			
+			}
+			
+			if(count($statusCompanies) > 0){		
+				$return .= '<tr style="background-color: white !important;"><td colspan="7"><br/>';		
+				foreach($statusCompanies as $companyName => $pcCount) $return .= "Компания: $companyName, компьютеров: $pcCount<br/>";
+				$return .= 'Итого компьютеров: '.array_sum($statusCompanies).'</td></tr>';		
+			}
+			
+		}else{
+			$return .= '<tr><td colspan="7"><i>Нет данных</i></td></tr>';				
+		}
+
+		$return .= '</tbody></table></fieldset>';		
+		return $return;		
+	}
+
+
 	function show_cartridges_statistic($cartridgeId = 0){
 		global $DB, $portalYesNo, $intlFormatter;
 		$intlFormatter->setPattern('d MMMM YYYYг.');		
