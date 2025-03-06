@@ -505,15 +505,14 @@ LEFT JOIN `recycling_printers` ON `recycling_events`.`printer_id`=`recycling_pri
 LEFT JOIN `recycling_events_reasons` ON `recycling_events`.`reason_id`=`recycling_events_reasons`.`id`
 LEFT JOIN `recycling_cartridges_models` ON `recycling_cartridges_models`.`id`=`recycling_cartridges`.`cartridge_model_id`
 LEFT JOIN `recycling_cartridges_stasuses` ON `recycling_cartridges`.`status_id`=`recycling_cartridges_stasuses`.`id`
-LEFT JOIN (SELECT dt, remark, event_id FROM `recycling_events_admins` WHERE `event_typ_id`='1') AS a ON a.event_id=`recycling_events`.id
+LEFT JOIN (SELECT dt, remark, event_id FROM `recycling_events_admins` WHERE `event_typ_id`='0') AS a ON a.event_id=`recycling_events`.id
 LEFT JOIN `recycling_breaks_content` ON `recycling_breaks_content`.`eventId`=`recycling_events`.`id`
 LEFT JOIN `recycling_companies` ON `recycling_companies`.`id`=`recycling_breaks_content`.`companyId`
 LEFT JOIN `recycling_checks` ON `recycling_checks`.`id`=`recycling_breaks_content`.`checkId`
 WHERE ".(($id > 0) ? "`recycling_breaks_content`.`breakId`='$id'" : "`recycling_events`.`office_id` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."')
 AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content` WHERE `breakId` IS NULL)")."
  ORDER BY `recycling_breaks_content`.`companyId`, `dt` DESC");
-
-
+ 
 		$return = '<form method="post" action="'.$_SERVER['PHP_SELF'].'">
 		<fieldset><legend>События для разбивки:</legend>
 		<input type="hidden" name="breakId" value="'.$id.'">
@@ -538,8 +537,9 @@ AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content`
 	
 		if($DB->num_rows($eventsQuery) > 0){
 			$companyId = 0;
-			while($pos = $DB->fetch_assoc($eventsQuery)){				
-				if($companyId != $pos['companyId']){
+			while($pos = $DB->fetch_assoc($eventsQuery)){	
+
+			if($companyId != $pos['companyId']){
 					$statusCompanies[$pos['company']] = 1;					
 					$companyId = $pos['companyId'];
 					$return .= '<tr class="companyName"><td colspan="'.(($id > 0) ? 11 : 8).'">Для компании '.$pos['company'].', ИНН '.$pos['inn'].'</td></tr>';					
@@ -733,12 +733,12 @@ ORDER BY `recycling_cartridges`.`office_id`, status_id, id");
 		$allowPrinters = $DB->query("SELECT * FROM `recycling_printers` WHERE `officeId` IN ('".implode("','", array_keys($_SESSION['myOfficesList']))."') AND `statusId` IN (2,5) ORDER BY printerName");
 		$allowPrinterArray = array();
 		while($allowPrinter = $DB->fetch_assoc($allowPrinters)) $allowPrinterArray[$allowPrinter['id']] = $allowPrinter['printerName'];
-
 		
 		$selectPrinter = ($printerId > 0) ? $printerId : (($_SESSION['printerRCId'] > 0) ? $_SESSION['printerRCId'] : 0);
 		
 		$return = '
 		<form name="formChangeCartridge" method="post" action="'.$_SERVER['PHP_SELF'].'">
+		<input type="hidden" value="'.$selectPrinter.'" name="printerId">
 		<fieldset class="editFormFieldset">
 		<table>
 			<caption>Замена картриджа:</caption>	

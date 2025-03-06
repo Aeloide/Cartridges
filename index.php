@@ -71,16 +71,17 @@
 		foreach($textVariables as $textVariable) if(isset($_POST[$textVariable])) $$textVariable = mb_substr($_POST[$textVariable], 0, 50);
 	
 		if (isset($_POST['cmdAddEvent'])){
-			$officeId = $DB->result("SELECT `officeId` FROM `recycling_printers` WHERE `id`='$_SESSION[printerRCId]'");
+			$printerId = ($printerId > 0) ? $printerId : (($_SESSION['printerRCId'] > 0) ? $_SESSION['printerRCId'] : 0);
+			$officeId = $DB->result("SELECT `officeId` FROM `recycling_printers` WHERE `id`='$printerId'");
 			// создание события (замена картриджа)
-			$DB->query("INSERT INTO recycling_events ( `office_id`, `printer_id`, `dt`, `cartridge_out_id`, `cartridge_in_id`, `reason_id`, `pages` ) VALUES ( '$officeId', '$_SESSION[printerRCId]', '$dt', '$cartridge_out_id', '$cartridge_in_id', '$reason_id', '$pages' )");
-			$event_id = $DB->result("SELECT id FROM recycling_events WHERE `office_id`='$officeId' AND `printer_id`='$_SESSION[printerRCId]' AND `cartridge_out_id`='$cartridge_out_id' AND `cartridge_in_id`='$cartridge_in_id' ORDER BY id DESC LIMIT 1");
+			$DB->query("INSERT INTO recycling_events ( `office_id`, `printer_id`, `dt`, `cartridge_out_id`, `cartridge_in_id`, `reason_id`, `pages` ) VALUES ( '$officeId', '$printerId', '$dt', '$cartridge_out_id', '$cartridge_in_id', '$reason_id', '$pages' )");
+			$event_id = $DB->result("SELECT id FROM recycling_events WHERE `office_id`='$officeId' AND `printer_id`='$printerId' AND `cartridge_out_id`='$cartridge_out_id' AND `cartridge_in_id`='$cartridge_in_id' ORDER BY id DESC LIMIT 1");
 			$DB->query("INSERT INTO recycling_events_admins ( `event_id`, `dt`, `admin_id`, `event_typ_id`, `remark` ) VALUES ( '$event_id', '$dt', '$_SESSION[adminId]', '0', '".$DB->escape($remark)."' )");
 			$DB->query("UPDATE recycling_cartridges SET `status_id`='0' WHERE `id`='$cartridge_out_id'");
 			$DB->query("UPDATE recycling_cartridges SET `status_id`='4' WHERE `id`='$cartridge_in_id'");
-			$DB->query("UPDATE recycling_printers SET `cartridge_inside`='$cartridge_in_id' WHERE `id`='$_SESSION[printerRCId]'");
+			$DB->query("UPDATE recycling_printers SET `cartridge_inside`='$cartridge_in_id' WHERE `id`='$printerId'");
 			if($cartridge_out_id > 0){
-				$companyId = $DB->result("SELECT companyId FROM `recycling_printers` WHERE `id`='$_SESSION[printerRCId]'");
+				$companyId = $DB->result("SELECT companyId FROM `recycling_printers` WHERE `id`='$printerId'");
 				$DB->query("INSERT INTO `recycling_breaks_content`(`eventId`,`companyId`) VALUES ('$event_id','$companyId')");
 			}
 		} elseif (isset($_POST['cmdAddCartridge'])){
