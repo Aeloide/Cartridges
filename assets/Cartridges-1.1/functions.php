@@ -552,7 +552,7 @@ AND `recycling_events`.`id` IN (SELECT `eventId` FROM `recycling_breaks_content`
 						<td><input type="checkbox" name="events[]" value="'.$pos['eventId'].'" '.(($id > 0) ? '' : ' checked').'></td>
 						<td>'.$statusCompanies[$pos['company']]."</td>
 						<td>$pos[printerName]</td>
-						<td><a href=\"?cartridgehistory=$pos[caId]\" target=\"_blank\"><b>$pos[inv_num]</b> ($pos[cartridgeName])</a></td>
+						<td><a href=\"?cartridgeHistory=$pos[caId]\" target=\"_blank\"><b>$pos[inv_num]</b> ($pos[cartridgeName])</a></td>
 						<td>$pos[reason]</td>					
 						<td>".$intlFormatter->format($pos['dt'])."</td>
 						<td>".$intlFormatter->format($pos['dtOut'])."</td>
