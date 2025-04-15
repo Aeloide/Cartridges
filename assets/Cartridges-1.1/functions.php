@@ -490,7 +490,7 @@ SELECT
 `recycling_events_reasons`.`reason`,
 `recycling_events`.`dt`,
 `recycling_events`.`id` AS `eventId`,
-`a`.`dt` AS dtOut,
+`b`.`dt` AS dtOut,
 `a`.`remark` AS remark,
 `recycling_breaks_content`.`breakId`,
 `recycling_breaks_content`.`checkId`,
@@ -505,7 +505,8 @@ LEFT JOIN `recycling_printers` ON `recycling_events`.`printer_id`=`recycling_pri
 LEFT JOIN `recycling_events_reasons` ON `recycling_events`.`reason_id`=`recycling_events_reasons`.`id`
 LEFT JOIN `recycling_cartridges_models` ON `recycling_cartridges_models`.`id`=`recycling_cartridges`.`cartridge_model_id`
 LEFT JOIN `recycling_cartridges_stasuses` ON `recycling_cartridges`.`status_id`=`recycling_cartridges_stasuses`.`id`
-LEFT JOIN (SELECT dt, remark, event_id FROM `recycling_events_admins` WHERE `event_typ_id`='0') AS a ON a.event_id=`recycling_events`.id
+LEFT JOIN (SELECT remark, event_id FROM `recycling_events_admins` WHERE `event_typ_id`='0') AS a ON a.event_id=`recycling_events`.id
+LEFT JOIN (SELECT dt, event_id FROM `recycling_events_admins` WHERE `event_typ_id`='1') AS b ON b.event_id=`recycling_events`.id
 LEFT JOIN `recycling_breaks_content` ON `recycling_breaks_content`.`eventId`=`recycling_events`.`id`
 LEFT JOIN `recycling_companies` ON `recycling_companies`.`id`=`recycling_breaks_content`.`companyId`
 LEFT JOIN `recycling_checks` ON `recycling_checks`.`id`=`recycling_breaks_content`.`checkId`
